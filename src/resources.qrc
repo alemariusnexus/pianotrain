@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>fonts/guido2.ttf</file>
+    </qresource>
+</RCC>

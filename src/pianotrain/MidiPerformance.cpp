@@ -31,19 +31,33 @@ MidiPerformance::MidiPerformance(QObject* parent)
 }
 
 
-void MidiPerformance::addAbsoluteNote(int8_t midiKey, int32_t start, int32_t lenNum, int32_t lenDenom)
+void MidiPerformance::addAbsoluteNote(int8_t midiKey, int32_t startNum, int32_t startDenom, int32_t lenNum, int32_t lenDenom, void* userData)
 {
 	Note note;
 	note.midiKey = midiKey;
-	note.startTick = start;
+	note.startTick = noteLengthToTickCount(startNum, startDenom);
 	note.lenNum = lenNum;
 	note.lenDenom = lenDenom;
 	note.hit = false;
 	note.missed = false;
+	note.userData = userData;
 
-	printf("Note %d starts at %d (grace: %d)\n", midiKey, start, gracePeriodFunc(lenNum, lenDenom));
+	printf("Adding note %d at %d/%d for length %d/%d\n", midiKey, startNum, startDenom, lenNum, lenDenom);
+	fflush(stdout);
 
 	notes << note;
+}
+
+
+void MidiPerformance::addAbsoluteRest(int32_t startNum, int32_t startDenom, int32_t lenNum, int32_t lenDenom, void* userData)
+{
+	// Currently, rests aren't used for anything, so just do nothing.
+}
+
+
+void MidiPerformance::advance(int32_t lenNum, int32_t lenDenum)
+{
+	nextStart += chordMinLength;
 }
 
 
@@ -65,13 +79,13 @@ void MidiPerformance::endChord()
 
 		if (chordMinLength >= 0)
 		{
-			nextStart += chordMinLength;
+			advance(chordMinLength, MIDI_PERFORMANCE_LEN_WHOLE);
 		}
 	}
 }
 
 
-void MidiPerformance::addNote(int8_t midiKey, int32_t lenNum, int32_t lenDenom)
+void MidiPerformance::addNote(int8_t midiKey, int32_t lenNum, int32_t lenDenom, void* userData)
 {
 	bool chordify = !chordActive;
 
@@ -85,11 +99,11 @@ void MidiPerformance::addNote(int8_t midiKey, int32_t lenNum, int32_t lenDenom)
 
 	if (midiKey >= 0)
 	{
-		addAbsoluteNote(midiKey, start, lenNum, lenDenom);
+		addAbsoluteNote(midiKey, start, MIDI_PERFORMANCE_LEN_WHOLE, lenNum, lenDenom, userData);
 	}
 	else
 	{
-		// It's a rest. Count it as taking up time, but don't add it as a note
+		addAbsoluteRest(start, MIDI_PERFORMANCE_LEN_WHOLE, lenNum, lenDenom, userData);
 	}
 
 	chordMinLength = chordMinLength >= 0 ? min(chordMinLength, tickLen) : tickLen;
@@ -101,33 +115,33 @@ void MidiPerformance::addNote(int8_t midiKey, int32_t lenNum, int32_t lenDenom)
 }
 
 
-void MidiPerformance::addNote(const CString& name, int32_t lenNum, int32_t lenDenom)
+void MidiPerformance::addNote(const CString& name, int32_t lenNum, int32_t lenDenom, void* userData)
 {
-	addNote(ConvertStringToMidiKey(name, noteNameOctaveOffset), lenNum, lenDenom);
+	addNote(ConvertStringToMidiKey(name, noteNameOctaveOffset), lenNum, lenDenom, userData);
 }
 
 
-void MidiPerformance::addNote(int8_t midiKey, int32_t lenDenom)
+void MidiPerformance::addNote(int8_t midiKey, int32_t lenDenom, void* userData)
 {
-	addNote(midiKey, 1, lenDenom);
+	addNote(midiKey, 1, lenDenom, userData);
 }
 
 
-void MidiPerformance::addNote(const CString& name, int32_t lenDenom)
+void MidiPerformance::addNote(const CString& name, int32_t lenDenom, void* userData)
 {
-	addNote(name, 1, lenDenom);
+	addNote(name, 1, lenDenom, userData);
 }
 
 
-void MidiPerformance::addRest(int32_t lenNum, int32_t lenDenom)
+void MidiPerformance::addRest(int32_t lenNum, int32_t lenDenom, void* userData)
 {
-	addNote(-1, lenNum, lenDenom);
+	addNote(-1, lenNum, lenDenom, userData);
 }
 
 
-void MidiPerformance::addRest(int32_t lenDenom)
+void MidiPerformance::addRest(int32_t lenDenom, void* userData)
 {
-	addRest(1, lenDenom);
+	addRest(1, lenDenom, userData);
 }
 
 
@@ -180,13 +194,17 @@ void MidiPerformance::start()
 }
 
 
-void MidiPerformance::hitNote(int8_t midiKey, uint64_t timestamp)
+void MidiPerformance::hitNote(int8_t midiKey, int32_t timeNum, int32_t timeDenom)
 {
-	Note* closestNote = nullptr;
+	//Note* closestNote = nullptr;
+	int32_t closestStartTick = -1;
+	QList<Note*> closestNotes;
 
-	int32_t tick = getPerformanceTick(timestamp);
+	int32_t tick = noteLengthToTickCount(timeNum, timeDenom);
+	//int32_t tick = getPerformanceTick(timestamp);
 
-	//printf("> Note %d hit at %u\n", midiKey, tick);
+	//printf("> Note %d hit at %d, %d\n", midiKey, timeNum, timeDenom);
+	//fflush(stdout);
 
 	for (Note& note : notes)
 	{
@@ -196,30 +214,55 @@ void MidiPerformance::hitNote(int8_t midiKey, uint64_t timestamp)
 
 			if (tick >= note.startTick-gracePeriod  &&  tick <= note.startTick+gracePeriod)
 			{
-				if (!closestNote  ||  abs(note.startTick - tick) < abs(closestNote->startTick - tick))
+				int32_t noteDist = abs(note.startTick - tick);
+				int32_t closestDist = abs(closestStartTick - tick);
+
+				if (closestStartTick < 0  ||  noteDist < closestDist)
 				{
-					closestNote = &note;
+					// This note is closer than the previous closest note
+					closestNotes.clear();
+					closestNotes << &note;
+					closestStartTick = note.startTick;
+				}
+				else if (note.startTick == closestStartTick)
+				{
+					// This note occurs at the same time as the closest note -> multiple possible notes (chord)
+					closestNotes << &note;
 				}
 			}
 		}
 	}
 
-	if (closestNote)
+	if (closestStartTick >= 0)
 	{
-		if (closestNote->midiKey == midiKey)
+		bool hit = false;
+
+		for (Note* note : closestNotes)
 		{
-			closestNote->hit = true;
-			reportHitNote(*closestNote);
+			if (note->midiKey == midiKey)
+			{
+				note->hit = true;
+				reportHitNote(tick, MIDI_PERFORMANCE_LEN_WHOLE, *note);
+				hit = true;
+				break;
+			}
 		}
-		else
+
+		if (!hit)
 		{
-			reportWrongNote(*closestNote, midiKey);
+			reportWrongNote(tick, MIDI_PERFORMANCE_LEN_WHOLE, closestNotes, midiKey);
 		}
 	}
 	else
 	{
-		reportExcessNote(midiKey, tick);
+		reportExcessNote(tick, MIDI_PERFORMANCE_LEN_WHOLE, midiKey);
 	}
+}
+
+
+void MidiPerformance::hitNote(int8_t midiKey, uint64_t timestamp)
+{
+	hitNote(midiKey, getPerformanceTick(timestamp), MIDI_PERFORMANCE_LEN_WHOLE);
 }
 
 
@@ -229,9 +272,15 @@ void MidiPerformance::hitNote(int8_t midiKey)
 }
 
 
-void MidiPerformance::releaseNote(uint8_t midiKey, uint64_t timestamp)
+void MidiPerformance::releaseNote(uint8_t midiKey, int32_t timeNum, int32_t timeDenom)
 {
 	// TODO: Implement
+}
+
+
+void MidiPerformance::releaseNote(uint8_t midiKey, uint64_t timestamp)
+{
+	releaseNote(midiKey, getPerformanceTick(timestamp), MIDI_PERFORMANCE_LEN_WHOLE);
 }
 
 
@@ -243,6 +292,9 @@ void MidiPerformance::releaseNote(uint8_t midiKey)
 
 void MidiPerformance::midiMessageReceived(uint8_t status, uint8_t data1, uint8_t data2, uint64_t timestamp)
 {
+	//printf("MIDI MSG\n");
+	//fflush(stdout);
+
 	int32_t channel = status & 0xF;
 	int32_t cmd = status & 0xF0;
 
@@ -338,35 +390,27 @@ int32_t MidiPerformance::getPerformanceTick() const
 }
 
 
-void MidiPerformance::reportHitNote(const Note& note)
+void MidiPerformance::reportHitNote(int32_t hitNum, int32_t hitDenom, const Note& note)
 {
-	uint32_t gracePeriod = gracePeriodFunc(note.lenNum, note.lenDenom);
-	printf("Hit correct note %s at %d (%d - %d)\n", ConvertMidiKeyToString(note.midiKey).get(), getPerformanceTick(),
-			note.startTick - gracePeriod, note.startTick + gracePeriod);
-	fflush(stdout);
+	emit noteHit(note.midiKey, hitNum, hitDenom, note.startTick, MIDI_PERFORMANCE_LEN_WHOLE, note.lenNum, note.lenDenom, note.userData);
 }
 
 
 void MidiPerformance::reportMissedNote(const Note& note)
 {
-	uint32_t gracePeriod = gracePeriodFunc(note.lenNum, note.lenDenom);
-	printf("Missed note %s at %d (%d - %d)!\n", ConvertMidiKeyToString(note.midiKey).get(), getPerformanceTick(),
-			note.startTick - gracePeriod, note.startTick + gracePeriod);
-	fflush(stdout);
+	emit noteMissed(note.midiKey, note.startTick, MIDI_PERFORMANCE_LEN_WHOLE, note.lenNum, note.lenDenom, note.userData);
 }
 
 
-void MidiPerformance::reportExcessNote(int8_t midiKey, int32_t tick)
+void MidiPerformance::reportExcessNote(int32_t hitNum, int32_t hitDenom, int8_t midiKey)
 {
-	printf("Excess note %s at %d!\n", ConvertMidiKeyToString(midiKey).get(), tick);
-	fflush(stdout);
+	emit noteExcess(midiKey, hitNum, hitDenom);
 }
 
 
-void MidiPerformance::reportWrongNote(const Note& note, int8_t playedMidiKey)
+void MidiPerformance::reportWrongNote(int32_t hitNum, int32_t hitDenom, const QList<Note*>& possibleNotes, int8_t playedMidiKey)
 {
-	uint32_t gracePeriod = gracePeriodFunc(note.lenNum, note.lenDenom);
-	printf("Hit wrong note %s at %d (%d - %d, correct: %s)\n", ConvertMidiKeyToString(playedMidiKey).get(), getPerformanceTick(),
-			note.startTick - gracePeriod, note.startTick + gracePeriod, ConvertMidiKeyToString(note.midiKey).get());
-	fflush(stdout);
+	// TODO: Currently not implemented separately
+	reportExcessNote(hitNum, hitDenom, playedMidiKey);
+	//emit noteWrong(playedMidiKey, hitNum, hitDenom);
 }

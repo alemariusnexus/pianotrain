@@ -44,6 +44,21 @@ int main(int argc, char** argv)
     midi->openInput("Digital Piano");
 
 
+    int deviceId = -1;
+
+    for (int i = 0 ; i < Pm_CountDevices() ; i++)
+    {
+    	const PmDeviceInfo* info = Pm_GetDeviceInfo(i);
+
+    	if (info->input)
+    	{
+    		printf("Device %d: %s\n", i, info->name);
+    	}
+    	else
+    	{
+    		printf("Device %d (non-input): %s\n", i, info->name);
+    	}
+    }
 
     //perf.hitNote(60, GetMultimediaTimerMilliseconds() + 10);
     //perf.hitNote(60, GetMultimediaTimerMilliseconds() + 700);

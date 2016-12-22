@@ -12,7 +12,8 @@
 #include <functional>
 
 
-#define MIDI_PERFORMANCE_LEN_WHOLE 128
+//#define MIDI_PERFORMANCE_LEN_WHOLE 128
+#define MIDI_PERFORMANCE_LEN_WHOLE 2048
 #define MIDI_PERFORMANCE_LEN_HALF 64
 #define MIDI_PERFORMANCE_LEN_QUARTER 32
 #define MIDI_PERFORMANCE_LEN_EIGHTH 16
@@ -25,7 +26,7 @@ class MidiPerformance : public QObject
 {
 	Q_OBJECT
 
-public:
+private:
 	struct Note
 	{
 		int8_t midiKey;
@@ -34,6 +35,7 @@ public:
 		int32_t lenDenom;
 		bool hit;
 		bool missed;
+		void* userData;
 	};
 
 public:
@@ -42,13 +44,18 @@ public:
 	void startChord();
 	void endChord();
 
-	void addNote(int8_t midiKey, int32_t lenNum, int32_t lenDenom);
-	void addNote(const CString& name, int32_t lenNum, int32_t lenDenom);
-	void addNote(int8_t midiKey, int32_t lenDenom);
-	void addNote(const CString& name, int32_t lenDenom);
+	void addAbsoluteNote(int8_t midiKey, int32_t startNum, int32_t startDenom, int32_t lenNum, int32_t lenDenom, void* userData = nullptr);
+	void addAbsoluteRest(int32_t startNum, int32_t startDenom, int32_t lenNum, int32_t lenDenom, void* userData = nullptr);
 
-	void addRest(int32_t lenNum, int32_t lenDenom);
-	void addRest(int32_t lenDenom);
+	void advance(int32_t lenNum, int32_t lenDenum);
+
+	void addNote(int8_t midiKey, int32_t lenNum, int32_t lenDenom, void* userData = nullptr);
+	void addNote(const CString& name, int32_t lenNum, int32_t lenDenom, void* userData = nullptr);
+	void addNote(int8_t midiKey, int32_t lenDenom, void* userData = nullptr);
+	void addNote(const CString& name, int32_t lenDenom, void* userData = nullptr);
+
+	void addRest(int32_t lenNum, int32_t lenDenom, void* userData = nullptr);
+	void addRest(int32_t lenDenom, void* userData = nullptr);
 
 	void setTempo(int32_t bpm, int32_t baseNum = 1, int32_t baseDenom = 4);
 
@@ -58,32 +65,52 @@ public:
 	void start(int32_t countOffNum, int32_t countOffDenom);
 	void start();
 
+	void hitNote(int8_t midiKey, int32_t timeNum, int32_t timeDenom);
 	void hitNote(int8_t midiKey, uint64_t timestamp);
 	void hitNote(int8_t midiKey);
 
+	void releaseNote(uint8_t midiKey, int32_t timeNum, int32_t timeDenom);
 	void releaseNote(uint8_t midiKey, uint64_t timestamp);
 	void releaseNote(uint8_t midiKey);
 
 	void setNoteNameOctaveOffset(int8_t octaveOffset = -1);
 
 signals:
-	void currentNoteUpdated();
 	void currentTickUpdated(int32_t num, int32_t denom);
+
+	void noteHit (
+			int8_t midiKey,
+			int32_t hitNum, int32_t hitDenom,
+			int32_t startNum, int32_t startDenom,
+			int32_t lenNum, int32_t lenDenom,
+			void* userData );
+
+	void noteMissed (
+			int8_t midiKey,
+			int32_t startNum, int32_t startDenom,
+			int32_t lenNum, int32_t lenDenom,
+			void* userData );
+
+	void noteExcess (
+			int8_t midiKey,
+			int32_t hitNum, int32_t hitDenom );
+
+	/*// TODO: Expose more info
+	void noteWrong (
+			int8_t midiKey,
+			int32_t hitNum, int32_t hitDenom );*/
+
 
 private slots:
 	void midiMessageReceived(uint8_t status, uint8_t data1, uint8_t data2, uint64_t timestamp);
 
-private:
-	void reportHitNote(const Note& note);
+protected:
+	void reportHitNote(int32_t hitNum, int32_t hitDenom, const Note& note);
 	void reportMissedNote(const Note& note);
-	void reportExcessNote(int8_t midiKey, int32_t tick);
-	void reportWrongNote(const Note& note, int8_t playedMidiKey);
-
-	void addAbsoluteNote(int8_t midiKey, int32_t start, int32_t lenNum, int32_t lenDenom);
+	void reportExcessNote(int32_t hitNum, int32_t hitDenom, int8_t midiKey);
+	void reportWrongNote(int32_t hitNum, int32_t hitDenom, const QList<Note*>& possibleNotes, int8_t playedMidiKey);
 
 	void performanceThreadMain();
-
-	void checkMissedNotes();
 
 	int32_t getPerformanceTick(uint64_t timestamp) const;
 	int32_t getPerformanceTick() const;

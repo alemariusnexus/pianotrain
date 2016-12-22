@@ -3,7 +3,7 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QString>
-#include <QtGui/QColor>
+#include <QColor>
 #include <Guido/GUIDOParse.h>
 #include <Guido/GUIDOEngine.h>
 #include <functional>

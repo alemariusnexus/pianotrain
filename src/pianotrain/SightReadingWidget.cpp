@@ -1,6 +1,7 @@
 #include "SightReadingWidget.h"
 #include <QtCore/QTimer>
-#include <QtGui/QSound>
+#include <QtCore/QThread>
+#include <QSound>
 #include <Guido/GUIDOParse.h>
 #include <Guido/GUIDOEngine.h>
 #include <GuidoQt/QGuidoGraphicsItem.h>
@@ -27,7 +28,7 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 	//const char* guidoStr = "[ {c/4,d/4} ]";
 	//const char* guidoStr = "[ c/8 e g _ {c/4,e,g} d/8 f a {d/4,f,a} e/8 g b {e/4,g,b} f/8 a c2 {f/4,a,c} ]";
 	//const char* guidoStr = "[ c/8 e g _ {c/2,e,g} | d/8 f a _ {d/2,f,a} | e/8 g b _ {e/2,g,b} | f/8 a c2 _ {f/2,a,c} ]";
-	const char* guidoStr = "[ \\clef<\"g2\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ]";
+	const char* guidoStr = "[ \\clef<\"g2\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ]";
 	//const char* guidoStr = "[ \\restFormat<color=\"red\">(_/4) ]";
 	//const char* guidoStr = "[ c/8 _ d ]";
 	//const char* guidoStr = "[ c c/8 _/4 {c,e,g} ]";
@@ -107,11 +108,11 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 
     //perf->start();
 
-    //std::thread thr(&SightReadingWidget::startPerformance, this);
+    //std::thread thr(&SightReadingWidget::startPerformanceCountoff, this);
     //thr.detach();
 
-    QTimer::singleShot(10000, this, SLOT(startPerformance()));
-    //startPerformance();
+    QTimer::singleShot(10000, this, SLOT(startPerformanceCountoff()));
+    //startPerformanceCountoff();
 
 
 
@@ -137,19 +138,15 @@ void SightReadingWidget::delayMilliseconds(uint64_t ms)
 }
 
 
-void SightReadingWidget::metronomeTick()
+void MetronomeThread::metronomeTick()
 {
-	/*uint64_t ts = GetMultimediaTimerMilliseconds();
-	printf("Sound played at %llu\n", (long long unsigned) ts);
-	fflush(stdout);*/
-
 	if (metronomeTickCounter%2 == 0)
 	{
-		QSound::play("C:/Program Files (x86)/Open Metronome/Samples/Bass Drum 1.wav");
+		metronomeFullTickSound->play();
 	}
 	else
 	{
-		QSound::play("C:/Program Files (x86)/Open Metronome/Samples/Tambourine.wav");
+		metronomeHalfTickSound->play();
 	}
 
 	if (metronomeTickCounter < 8)
@@ -165,14 +162,6 @@ void SightReadingWidget::metronomeTick()
 
 		fflush(stdout);
 	}
-	else if (metronomeTickCounter == 8)
-	{
-		printf("\n");
-		fflush(stdout);
-
-		perfStartTime = GetMultimediaTimerMilliseconds();
-		perf->start();
-	}
 
 	metronomeTickCounter++;
 }
@@ -180,54 +169,57 @@ void SightReadingWidget::metronomeTick()
 
 void SightReadingWidget::startPerformance()
 {
-	//SleepMilliseconds(10000.0f);
+	printf("\n");
 
-	metronomeTimer = new QTimer(this);
-	connect(metronomeTimer, SIGNAL(timeout()), this, SLOT(metronomeTick()));
-	metronomeTimer->start(500);
+	perfStartTime = GetMultimediaTimerMilliseconds();
+	perf->start();
 
-	/*for (int i = 0 ; i < 2 ; i++)
+	fflush(stdout);
+}
+
+
+void MetronomeThread::run()
+{
+	metronomeTickCounter = 0;
+
+	metronomeFullTickSound = new QSoundEffect;
+	metronomeHalfTickSound = new QSoundEffect;
+
+	metronomeFullTickSound->setSource(QUrl::fromLocalFile(":/sounds/metronome_full.wav"));
+	metronomeHalfTickSound->setSource(QUrl::fromLocalFile(":/sounds/metronome_half.wav"));
+
+	nextMetronomeTick = GetMultimediaTimerMilliseconds() + 500;
+
+	QTimer::singleShot(0, this, SLOT(eventLoopTick()));
+
+	exec();
+}
+
+
+void MetronomeThread::eventLoopTick()
+{
+	uint64_t now = GetMultimediaTimerMilliseconds();
+
+	if (now >= nextMetronomeTick)
 	{
-		//QSound::play("C:/Program Files (x86)/Open Metronome/Samples/ZZ_Default.wav");
-		printf("1..."); fflush(stdout);
-		//SleepMilliseconds(500.0f);
-		delayMilliseconds(500);
-
-		//QSound::play("C:/Program Files (x86)/Open Metronome/Samples/ZZ_Default.wav");
-
-		printf(" and...\n"); fflush(stdout);
-		//SleepMilliseconds(500.0f);
-		delayMilliseconds(500);
-
-		//QSound::play("C:/Program Files (x86)/Open Metronome/Samples/ZZ_Default.wav");
-		printf("2..."); fflush(stdout);
-		//SleepMilliseconds(500.0f);
-		delayMilliseconds(500);
-
-		printf(" and...\n"); fflush(stdout);
-		//SleepMilliseconds(500.0f);
-		delayMilliseconds(500);
-
-		//QSound::play("C:/Program Files (x86)/Open Metronome/Samples/ZZ_Default.wav");
-		printf("3..."); fflush(stdout);
-		//SleepMilliseconds(500.0f);
-		delayMilliseconds(500);
-
-		printf(" and...\n"); fflush(stdout);
-		//SleepMilliseconds(500.0f);
-		delayMilliseconds(500);
-
-		//QSound::play("C:/Program Files (x86)/Open Metronome/Samples/ZZ_Default.wav");
-		printf("4..."); fflush(stdout);
-		//SleepMilliseconds(500.0f);
-		delayMilliseconds(500);
-
-		printf(" and...\n"); fflush(stdout);
-		//SleepMilliseconds(500.0f);
-		delayMilliseconds(500);
+		metronomeTick();
+		QCoreApplication::processEvents(QEventLoop::AllEvents);
+		nextMetronomeTick += 500;
 	}
 
-    printf("\n"); fflush(stdout);*/
+	QTimer::singleShot(0, this, SLOT(eventLoopTick()));
+}
+
+
+void SightReadingWidget::startPerformanceCountoff()
+{
+	printf("\n");
+	fflush(stdout);
+
+	MetronomeThread* thr = new MetronomeThread(this);
+    thr->start();
+
+	QTimer::singleShot(4000 + 500, this, SLOT(startPerformance()));
 }
 
 
@@ -269,8 +261,8 @@ void SightReadingWidget::noteHit (
 		int32_t lenNum, int32_t lenDenom,
 		void* userData
 ) {
-	printf("At %d, %d: Hit note %d\n", hitNum, hitDenom, midiKey);
-	fflush(stdout);
+	//printf("At %d, %d: Hit note %d\n", hitNum, hitDenom, midiKey);
+	//fflush(stdout);
 
 	noteMarker->markCorrectPlay(midiKey, startNum, startDenom);
 	updateGuidoDisplay();
@@ -283,8 +275,8 @@ void SightReadingWidget::noteMissed (
 		int32_t lenNum, int32_t lenDenom,
 		void* userData
 ) {
-	printf("At %d, %d (%u): Missed note %d\n", startNum, startDenom, (unsigned int) (GetMultimediaTimerMilliseconds() - perfStartTime), midiKey);
-	fflush(stdout);
+	//printf("At %d, %d (%u): Missed note %d\n", startNum, startDenom, (unsigned int) (GetMultimediaTimerMilliseconds() - perfStartTime), midiKey);
+	//fflush(stdout);
 
 	//noteMarker->markMissedNote(midiKey, startNum, startDenom);
 	//updateGuidoDisplay();

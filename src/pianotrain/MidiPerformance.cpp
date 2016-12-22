@@ -42,8 +42,8 @@ void MidiPerformance::addAbsoluteNote(int8_t midiKey, int32_t startNum, int32_t 
 	note.missed = false;
 	note.userData = userData;
 
-	printf("Adding note %d at %d/%d for length %d/%d\n", midiKey, startNum, startDenom, lenNum, lenDenom);
-	fflush(stdout);
+	//printf("Adding note %d at %d/%d for length %d/%d\n", midiKey, startNum, startDenom, lenNum, lenDenom);
+	//fflush(stdout);
 
 	notes << note;
 }

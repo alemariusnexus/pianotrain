@@ -1,8 +1,8 @@
 #include <pianotrain/config.h>
 
-#include <QtGui/QApplication>
-#include <QtGui/QWidget>
-#include <QtGui/QFontDatabase>
+#include <QApplication>
+#include <QWidget>
+#include <QFontDatabase>
 
 #include <GuidoQt/QGuidoWidget.h>
 #include <GuidoQt/QGuidoPainter.h>
@@ -21,6 +21,10 @@
 
 int main(int argc, char** argv)
 {
+	/*printf("Go\n");
+	fflush(stdout);
+	return 0;*/
+
     QApplication app(argc, argv);
     
     qRegisterMetaType<uint8_t>("uint8_t");
@@ -46,13 +50,14 @@ int main(int argc, char** argv)
 
     int deviceId = -1;
 
+    printf("=== AVAILABLE MIDI DEVICES ===\n");
     for (int i = 0 ; i < Pm_CountDevices() ; i++)
     {
     	const PmDeviceInfo* info = Pm_GetDeviceInfo(i);
 
     	if (info->input)
     	{
-    		printf("Device %d: %s\n", i, info->name);
+    		printf("Device %d (input): %s\n", i, info->name);
     	}
     	else
     	{

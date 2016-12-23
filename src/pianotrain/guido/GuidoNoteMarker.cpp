@@ -20,59 +20,8 @@
 
 GuidoNoteMarker::GuidoNoteMarker(ARHandler ar, QObject* parent)
 		: QObject(parent), ar(ar), perfMarkerNoteColor(QColor(0, 255, 0)), perfMarkerRestColor(QColor(0, 255, 0, 127)),
-		  curPerfMarkerStartTimepos(TYPE_TIMEPOSITION(-1, 1)), curPerfMarkerEndTimepos(TYPE_TIMEPOSITION(-1, 1)),
 		  corrPlayColor(QColor(0, 255, 0)), missedNoteColor(QColor(255, 0, 0))
 {
-}
-
-
-void GuidoNoteMarker::clearPerformanceMarker()
-{
-	// TODO: Make this configurable, or whatever
-	int voicenum = 1;
-
-	ARMusic* music = ar->armusic;
-
-	GuidoPos pos = music->GetHeadPosition();
-	while (pos)
-	{
-		ARMusicalVoice * arvc = music->GetNext(pos);
-		if (arvc->getVoiceNum() == voicenum)
-		{
-			// Remove previous format markers
-			for (ARMusicalObject* obj : curPerfMarkerObjs)
-			{
-				arvc->RemoveElement(obj);
-			}
-			curPerfMarkerObjs.clear();
-
-			curPerfMarkerStartTimepos = TYPE_TIMEPOSITION(-1, 1);
-			curPerfMarkerEndTimepos = TYPE_TIMEPOSITION(-1, 1);
-
-			break;
-		}
-	}
-}
-
-
-bool GuidoNoteMarker::setPerformanceMarker(int32_t num, int32_t denom)
-{
-	// TODO: Make this configurable, or whatever
-	int voicenum = 1;
-
-	ARMusic* music = ar->armusic;
-
-	GuidoPos pos = music->GetHeadPosition();
-	while (pos)
-	{
-		ARMusicalVoice * arvc = music->GetNext(pos);
-		if (arvc->getVoiceNum() == voicenum)
-		{
-			return setPerformanceMarker(arvc, num, denom);
-		}
-	}
-
-	return false;
 }
 
 
@@ -287,24 +236,29 @@ bool GuidoNoteMarker::setPerformanceMarker(ARMusicalVoice* voice, int32_t num, i
 
 	// Insert format tags into AR structure
 
-	if (activeTimeposStart != curPerfMarkerStartTimepos  ||  activeTimeposEnd != curPerfMarkerEndTimepos)
+	int vnum = voice->getVoiceNum();
+
+	if (curPerfMarkerStartTimepos.contains(vnum)  &&  curPerfMarkerEndTimepos.contains(vnum))
 	{
-		QList<ARMusicalObject*> newTags;
-		formatNotes(activeTimeposStart, activeTimeposEnd, activePosStart, activePosEnd, voice, perfMarkerNoteColor, newTags);
-		formatRests(activeTimeposStart, activeTimeposEnd, activePosStart, activePosEnd, voice, perfMarkerRestColor, newTags);
-
-		// Clear the old markers now. Don't do it before adding the new ones, because pointers might become invalid!
-		clearPerformanceMarker();
-
-		curPerfMarkerObjs = newTags;
-
-		curPerfMarkerStartTimepos = activeTimeposStart;
-		curPerfMarkerEndTimepos = activeTimeposEnd;
-
-		return true;
+		if (activeTimeposStart == curPerfMarkerStartTimepos[vnum]  &&  activeTimeposEnd == curPerfMarkerEndTimepos[vnum])
+		{
+			return false;
+		}
 	}
 
-	return false;
+	QList<ARMusicalObject*> newTags;
+	formatNotes(activeTimeposStart, activeTimeposEnd, activePosStart, activePosEnd, voice, perfMarkerNoteColor, newTags);
+	formatRests(activeTimeposStart, activeTimeposEnd, activePosStart, activePosEnd, voice, perfMarkerRestColor, newTags);
+
+	// Clear the old markers now. Don't do it before adding the new ones, because pointers might become invalid!
+	clearPerformanceMarker(voice);
+
+	curPerfMarkerObjs << newTags;
+
+	curPerfMarkerStartTimepos[vnum] = activeTimeposStart;
+	curPerfMarkerEndTimepos[vnum] = activeTimeposEnd;
+
+	return true;
 }
 
 
@@ -392,14 +346,36 @@ bool GuidoNoteMarker::findNoteTagBounds (
 }
 
 
-bool GuidoNoteMarker::markSingleNote (
-		int8_t midiKey,
-		int32_t num, int32_t denom,
-		const QColor& color,
-		QList<ARMusicalObject*>& formatList
-) {
-	// TODO: Make this configurable, or whatever
-	int voicenum = 1;
+void GuidoNoteMarker::clearPerformanceMarker()
+{
+	removeMusicalObjects(curPerfMarkerObjs);
+	curPerfMarkerObjs.clear();
+
+	curPerfMarkerStartTimepos.clear();
+	curPerfMarkerEndTimepos.clear();
+}
+
+
+void GuidoNoteMarker::clearPerformanceMarker(ARMusicalVoice* voice)
+{
+	QList<ARMusicalObject*> newPerfMarkerObjs;
+
+	// Remove previous format markers
+	for (ARMusicalObject* obj : curPerfMarkerObjs)
+	{
+		if (!voice->RemoveElement(obj))
+		{
+			newPerfMarkerObjs << obj;
+		}
+	}
+
+	curPerfMarkerObjs = newPerfMarkerObjs;
+}
+
+
+bool GuidoNoteMarker::setPerformanceMarker(int32_t num, int32_t denom)
+{
+	bool newMarkers = false;
 
 	ARMusic* music = ar->armusic;
 
@@ -407,9 +383,30 @@ bool GuidoNoteMarker::markSingleNote (
 	while (pos)
 	{
 		ARMusicalVoice * arvc = music->GetNext(pos);
-		if (arvc->getVoiceNum() == voicenum)
+
+		newMarkers |= setPerformanceMarker(arvc, num, denom);
+	}
+
+	return newMarkers;
+}
+
+
+bool GuidoNoteMarker::markSingleNote (
+		int8_t midiKey,
+		int32_t num, int32_t denom,
+		const QColor& color,
+		QList<ARMusicalObject*>& formatList
+) {
+	ARMusic* music = ar->armusic;
+
+	GuidoPos pos = music->GetHeadPosition();
+	while (pos)
+	{
+		ARMusicalVoice * arvc = music->GetNext(pos);
+
+		if (markSingleNote(arvc, midiKey, num, denom, color, formatList))
 		{
-			return markSingleNote(arvc, midiKey, num, denom, color, formatList);
+			return true;
 		}
 	}
 
@@ -459,55 +456,35 @@ bool GuidoNoteMarker::markMissedNote(int8_t midiKey, int32_t num, int32_t denom)
 }
 
 
-void GuidoNoteMarker::clearCorrectPlayMarkers()
+void GuidoNoteMarker::removeMusicalObjects(const QList<ARMusicalObject*>& objs)
 {
-	// TODO: Make this configurable, or whatever
-	int voicenum = 1;
-
 	ARMusic* music = ar->armusic;
 
 	GuidoPos pos = music->GetHeadPosition();
 	while (pos)
 	{
 		ARMusicalVoice * arvc = music->GetNext(pos);
-		if (arvc->getVoiceNum() == voicenum)
-		{
-			// Remove previous format markers
-			for (ARMusicalObject* obj : corrPlayMarkerObjs)
-			{
-				arvc->RemoveElement(obj);
-			}
-			corrPlayMarkerObjs.clear();
 
-			break;
+		// Remove previous format markers
+		for (ARMusicalObject* obj : objs)
+		{
+			arvc->RemoveElement(obj);
 		}
 	}
 }
 
 
+void GuidoNoteMarker::clearCorrectPlayMarkers()
+{
+	removeMusicalObjects(corrPlayMarkerObjs);
+	corrPlayMarkerObjs.clear();
+}
+
+
 void GuidoNoteMarker::clearMissedNoteMarkers()
 {
-	// TODO: Make this configurable, or whatever
-	int voicenum = 1;
-
-	ARMusic* music = ar->armusic;
-
-	GuidoPos pos = music->GetHeadPosition();
-	while (pos)
-	{
-		ARMusicalVoice * arvc = music->GetNext(pos);
-		if (arvc->getVoiceNum() == voicenum)
-		{
-			// Remove previous format markers
-			for (ARMusicalObject* obj : missedNoteMarkerObjs)
-			{
-				arvc->RemoveElement(obj);
-			}
-			missedNoteMarkerObjs.clear();
-
-			break;
-		}
-	}
+	removeMusicalObjects(missedNoteMarkerObjs);
+	missedNoteMarkerObjs.clear();
 }
 
 

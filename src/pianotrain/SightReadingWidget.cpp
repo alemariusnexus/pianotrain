@@ -28,7 +28,9 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 	//const char* guidoStr = "[ {c/4,d/4} ]";
 	//const char* guidoStr = "[ c/8 e g _ {c/4,e,g} d/8 f a {d/4,f,a} e/8 g b {e/4,g,b} f/8 a c2 {f/4,a,c} ]";
 	//const char* guidoStr = "[ c/8 e g _ {c/2,e,g} | d/8 f a _ {d/2,f,a} | e/8 g b _ {e/2,g,b} | f/8 a c2 _ {f/2,a,c} ]";
-	const char* guidoStr = "[ \\clef<\"g2\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ]";
+	//const char* guidoStr = "[ \\clef<\"treble\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ]";
+	/*const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ], "
+			"[ \\clef<\"bass\"> c0/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b-1/8 f0 g _ {b-1/2,f0,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b-1/8 f0 g _ {b-1/2,f0,g} | {c/1,e,g} ] }";*/
 	//const char* guidoStr = "[ \\restFormat<color=\"red\">(_/4) ]";
 	//const char* guidoStr = "[ c/8 _ d ]";
 	//const char* guidoStr = "[ c/1 g ]";
@@ -40,9 +42,12 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 	//const char* guidoStr = "[ c {c/4,d/4,e/4} c ]";
 	//const char* guidoStr = "[ c c ]";
 	//const char* guidoStr = "[ c/4 d/4 e/4 ]";
+	const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 d e f g a b c2], [ \\clef<\"bass\"> c0/4 d e f ] }";
+	//const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 d], [ \\clef<\"bass\"> _/4 ] }";
 
 	GuidoParser* parser = GuidoOpenParser();
 	ar = GuidoString2AR(parser, guidoStr);
+	//ar = GuidoFile2AR(parser, "E:/source/guidolib-1.60-src/gmn-examples/lyrics/bach_lyrics.gmn");
 
 	TYPE_DURATION dur = ar->armusic->getDuration();
 	musicDurationNum = dur.getNumerator();

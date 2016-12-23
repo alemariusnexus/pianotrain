@@ -31,8 +31,25 @@ private:
 
 
 ExtendedGuidoWidget::ExtendedGuidoWidget(QWidget* parent)
-		: QGuidoWidget(parent), performanceMarkerNum(-1), performanceMarkerDenom(1)
+		: QGuidoWidget(parent), performanceMarkerMode(MarkAllSimultaneous), performanceMarkerColor(QColor(0, 0, 255, 50)),
+		  performanceMarkerNum(-1), performanceMarkerDenom(1)
 {
+}
+
+
+void ExtendedGuidoWidget::setPerformanceMarkerMode(PerformanceMarkerMode mode)
+{
+	if (performanceMarkerMode != mode)
+	{
+		performanceMarkerMode = mode;
+		update();
+	}
+}
+
+
+void ExtendedGuidoWidget::setPerformanceMarkerColor(const QColor& color)
+{
+	performanceMarkerColor = color;
 }
 
 
@@ -90,19 +107,49 @@ QRect ExtendedGuidoWidget::calculatePerformanceMarkerRect(int32_t timeNum, int32
 
 	struct EventMapState
 	{
+		GuidoDate bestStart;
 		FloatRect rect;
 	} eventMapState;
+
+	eventMapState.bestStart = {-1, 1};
 	eventMapState.rect = FloatRect(FLT_MAX, FLT_MAX, 0.0f, 0.0f);
 
-	auto eventMapCallback = [timeNum, timeDenom](EventMapState* state,
+	auto eventMapCallback = [timeNum, timeDenom, this](EventMapState* state,
 			const FloatRect& rect, const TimeSegment& ts, const GuidoElementInfos& info)
 	{
 		if (ts.include({timeNum, timeDenom}))
 		{
-			state->rect.left = min(state->rect.left, rect.left);
-			state->rect.top = min(state->rect.top, rect.top);
-			state->rect.right = max(state->rect.right, rect.right);
-			state->rect.bottom = max(state->rect.bottom, rect.bottom);
+			float bestStart = state->bestStart.num / (float) state->bestStart.denom;
+			float start = ts.first.num / (float) ts.first.denom;
+
+			if (state->bestStart.num < 0  ||  start > bestStart)
+			{
+				// Found an event that is better (occurred before marker time but later than current best)
+				// -> form new event rect
+				state->rect = rect;
+				state->bestStart = ts.first;
+			}
+			else if (start == bestStart)
+			{
+				// Another event that starts at the same time
+
+				if (performanceMarkerMode == MarkAllSimultaneous)
+				{
+					// Expand the event rect
+					state->rect.left = min(state->rect.left, rect.left);
+					state->rect.top = min(state->rect.top, rect.top);
+					state->rect.right = max(state->rect.right, rect.right);
+					state->rect.bottom = max(state->rect.bottom, rect.bottom);
+				}
+				else
+				{
+					if (rect.left < state->rect.left)
+					{
+						// Found event with rect that is more to the left -> use it
+						state->rect = rect;
+					}
+				}
+			}
 		}
 	};
 
@@ -120,17 +167,22 @@ QRect ExtendedGuidoWidget::calculatePerformanceMarkerRect(int32_t timeNum, int32
 }
 
 
+void ExtendedGuidoWidget::paintPerformanceMarker(const QRect& markerRect)
+{
+	QPainter painter(this);
+	painter.fillRect(markerRect, performanceMarkerColor);
+}
+
+
 void ExtendedGuidoWidget::paintEvent(QPaintEvent* event)
 {
 	QGuidoWidget::paintEvent(event);
 
 	if (performanceMarkerNum >= 0)
 	{
-		QPainter painter(this);
-
 		QRect perfMarkerRect = calculatePerformanceMarkerRect(performanceMarkerNum, performanceMarkerDenom);
 		lastPerformanceMarkerRect = perfMarkerRect;
 
-		painter.fillRect(perfMarkerRect, QColor(0, 0, 255, 50));
+		paintPerformanceMarker(perfMarkerRect);
 	}
 }

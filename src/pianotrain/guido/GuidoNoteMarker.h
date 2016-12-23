@@ -3,6 +3,7 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QString>
+#include <QtCore/QMap>
 #include <QColor>
 #include <Guido/GUIDOParse.h>
 #include <Guido/GUIDOEngine.h>
@@ -50,13 +51,10 @@ public:
 
 private:
 	bool setPerformanceMarker(ARMusicalVoice* voice, int32_t num, int32_t denom);
+	void clearPerformanceMarker(ARMusicalVoice* voice);
 
 	bool markSingleNote(int8_t midiKey, int32_t num, int32_t denom, const QColor& color, QList<ARMusicalObject*>& formatList);
 	bool markSingleNote(ARMusicalVoice* voice, int8_t midiKey, int32_t num, int32_t denom, const QColor& color, QList<ARMusicalObject*>& formatList);
-
-	//bool markCorrectPlay(ARMusicalVoice* voice, int8_t midiKey, int32_t num, int32_t denom);
-
-	//bool markMissedNote(ARMusicalVoice* voice, int8_t midiKey, int32_t num, int32_t denom);
 
 	bool findTagBounds (
 			TYPE_TIMEPOSITION& startTimepos, TYPE_TIMEPOSITION& endTimepos,
@@ -92,6 +90,8 @@ private:
 			QList<ARMusicalObject*>& formatList
 			);
 
+	void removeMusicalObjects(const QList<ARMusicalObject*>& objs);
+
 	QString buildGuidoColorString(const QColor& color) const;
 
 private:
@@ -100,8 +100,8 @@ private:
 	QColor perfMarkerNoteColor;
 	QColor perfMarkerRestColor;
 
-	TYPE_TIMEPOSITION curPerfMarkerStartTimepos;
-	TYPE_TIMEPOSITION curPerfMarkerEndTimepos;
+	QMap<int, TYPE_TIMEPOSITION> curPerfMarkerStartTimepos;
+	QMap<int, TYPE_TIMEPOSITION> curPerfMarkerEndTimepos;
 
 	QColor corrPlayColor;
 	QColor missedNoteColor;

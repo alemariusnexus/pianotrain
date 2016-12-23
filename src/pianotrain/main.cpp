@@ -65,6 +65,8 @@ int main(int argc, char** argv)
     	}
     }
 
+    fflush(stdout);
+
     //perf.hitNote(60, GetMultimediaTimerMilliseconds() + 10);
     //perf.hitNote(60, GetMultimediaTimerMilliseconds() + 700);
 

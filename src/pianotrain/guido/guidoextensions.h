@@ -4,6 +4,7 @@
 #include <Guido/GUIDOParse.h>
 #include <Guido/GUIDOEngine.h>
 #include <Guido/abstract/ARMusicalVoiceState.h>
+#include <QtCore/QList>
 #include <ostream>
 
 class MidiPerformance;
@@ -23,7 +24,7 @@ public:
 
 void GuidoPrintAR(ARHandler ar, std::ostream& out);
 
-void GudioFillMidiPerformance(ARHandler ar, MidiPerformance* perf);
+void GudioFillMidiPerformance(ARHandler ar, MidiPerformance* perf, const QList<int>& voiceNums = QList<int>());
 
 
 #endif /* GUIDOEXTENSIONS_H_ */

@@ -11,7 +11,7 @@
 
 
 Metronome::Metronome(QObject* parent)
-		: QObject(parent), regularVolume(1.0f), countoffVolume(0.1f), metronomeThread(nullptr)
+		: QObject(parent), regularVolume(1.0f), countoffVolume(1.0f), metronomeThread(nullptr)
 {
 	unsigned int measureStartSoundBufSize;
 	unsigned int measureTickSoundBufSize;

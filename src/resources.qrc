@@ -1,7 +1,8 @@
 <RCC>
     <qresource prefix="/">
         <file>fonts/guido2.ttf</file>
-        <file>sounds/metronome_full.wav</file>
-        <file>sounds/metronome_half.wav</file>
+        <file>sounds/metronome_measure_start.wav</file>
+        <file>sounds/metronome_measure_tick.wav</file>
+        <file>sounds/metronome_measure_subtick.wav</file>
     </qresource>
 </RCC>

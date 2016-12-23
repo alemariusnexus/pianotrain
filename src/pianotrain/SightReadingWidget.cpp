@@ -17,7 +17,7 @@
 
 
 SightReadingWidget::SightReadingWidget(QWidget* parent)
-		: QWidget(parent), metronomeTickCounter(0)
+		: QWidget(parent), perf(nullptr), metronome(nullptr)
 {
 	ui.setupUi(this);
 
@@ -31,6 +31,7 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 	const char* guidoStr = "[ \\clef<\"g2\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ]";
 	//const char* guidoStr = "[ \\restFormat<color=\"red\">(_/4) ]";
 	//const char* guidoStr = "[ c/8 _ d ]";
+	//const char* guidoStr = "[ c/1 g ]";
 	//const char* guidoStr = "[ c c/8 _/4 {c,e,g} ]";
 	//const char* guidoStr = "[ {d,\\noteFormat<color=\"red\">(f)} ]";
 	//const char* guidoStr = "[ c/4 {d,f} b ]";
@@ -42,6 +43,10 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 
 	GuidoParser* parser = GuidoOpenParser();
 	ar = GuidoString2AR(parser, guidoStr);
+
+	TYPE_DURATION dur = ar->armusic->getDuration();
+	musicDurationNum = dur.getNumerator();
+	musicDurationDenom = dur.getDenominator();
 
 	noteMarker = new GuidoNoteMarker(ar);
 
@@ -76,94 +81,32 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 	ui.guidoWidget->setARHandler(ar);
 
 
-	perf = new MidiPerformance;
+    metronome = new Metronome;
 
-	GudioFillMidiPerformance(ar, perf);
+    //QTimer::singleShot(1000, this, SLOT(startPerformanceCountoff()));
 
-    connect(perf, SIGNAL(currentTickUpdated(int32_t, int32_t)), this, SLOT(currentTickUpdated(int32_t, int32_t)));
-
-    connect(perf, SIGNAL(noteHit(int8_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, void*)),
-    		this, SLOT(noteHit(int8_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, void*)));
-
-    connect(perf, SIGNAL(noteMissed(int8_t, int32_t, int32_t, int32_t, int32_t, void*)),
-    		this, SLOT(noteMissed(int8_t, int32_t, int32_t, int32_t, int32_t, void*)));
-
-    perf->setTempo(60);
-
-    /*SleepMilliseconds(3000.0f);
-
-    printf("1...\n"); fflush(stdout);
-    SleepMilliseconds(1000.0f);
-
-    printf("2...\n"); fflush(stdout);
-    SleepMilliseconds(1000.0f);
-
-    printf("3...\n"); fflush(stdout);
-    SleepMilliseconds(1000.0f);
-
-    printf("4...\n"); fflush(stdout);
-    SleepMilliseconds(1000.0f);
-
-    printf("\n"); fflush(stdout);*/
-
-    //perf->start();
-
-    //std::thread thr(&SightReadingWidget::startPerformanceCountoff, this);
-    //thr.detach();
-
-    QTimer::singleShot(10000, this, SLOT(startPerformanceCountoff()));
-    //startPerformanceCountoff();
-
-
-
-    /*perf->hitNote(67, 2, 8);
-    perf->hitNote(64, 4, 8);
-    perf->hitNote(67, 4, 8);*/
-
-    //perf->hitNote(61, 1, 12);
+    //QTimer::singleShot(5000, this, SLOT(interruptStuff()));
 }
 
 
-void SightReadingWidget::delayMilliseconds(uint64_t ms)
+void SightReadingWidget::interruptStuff()
 {
-	SleepMilliseconds((float) ms);
-	/*uint64_t delayEnd = GetMultimediaTimerMilliseconds() + ms;
-
-	uint64_t now;
-
-	while ((now = GetMultimediaTimerMilliseconds()) < delayEnd)
-	{
-		QCoreApplication::processEvents(QEventLoop::AllEvents, std::min(100u, (unsigned int) (delayEnd-now)));
-	}*/
+	metronome->stop();
+	perf->stop();
 }
 
 
-void MetronomeThread::metronomeTick()
+void SightReadingWidget::performanceFinished(bool stopped)
 {
-	if (metronomeTickCounter%2 == 0)
-	{
-		metronomeFullTickSound->play();
-	}
-	else
-	{
-		metronomeHalfTickSound->play();
-	}
+	//noteMarker->clearPerformanceMarker();
+	ui.guidoWidget->clearPerformanceMarker();
 
-	if (metronomeTickCounter < 8)
-	{
-		if (metronomeTickCounter%2 == 0)
-		{
-			printf("%u... ", (metronomeTickCounter/2)+1);
-		}
-		else
-		{
-			printf("and...\n");
-		}
+	updateGuidoDisplay();
 
-		fflush(stdout);
-	}
+	printf("Performance %s!\n", stopped ? "stopped" : "finished");
+	fflush(stdout);
 
-	metronomeTickCounter++;
+	//QTimer::singleShot(1000, this, SLOT(startPerformanceCountoff()));
 }
 
 
@@ -178,48 +121,49 @@ void SightReadingWidget::startPerformance()
 }
 
 
-void MetronomeThread::run()
-{
-	metronomeTickCounter = 0;
-
-	metronomeFullTickSound = new QSoundEffect;
-	metronomeHalfTickSound = new QSoundEffect;
-
-	metronomeFullTickSound->setSource(QUrl::fromLocalFile(":/sounds/metronome_full.wav"));
-	metronomeHalfTickSound->setSource(QUrl::fromLocalFile(":/sounds/metronome_half.wav"));
-
-	nextMetronomeTick = GetMultimediaTimerMilliseconds() + 500;
-
-	QTimer::singleShot(0, this, SLOT(eventLoopTick()));
-
-	exec();
-}
-
-
-void MetronomeThread::eventLoopTick()
-{
-	uint64_t now = GetMultimediaTimerMilliseconds();
-
-	if (now >= nextMetronomeTick)
-	{
-		metronomeTick();
-		QCoreApplication::processEvents(QEventLoop::AllEvents);
-		nextMetronomeTick += 500;
-	}
-
-	QTimer::singleShot(0, this, SLOT(eventLoopTick()));
-}
-
-
 void SightReadingWidget::startPerformanceCountoff()
 {
 	printf("\n");
 	fflush(stdout);
 
-	MetronomeThread* thr = new MetronomeThread(this);
-    thr->start();
+	noteMarker->clear();
+	ui.guidoWidget->clearPerformanceMarker();
 
-	QTimer::singleShot(4000 + 500, this, SLOT(startPerformance()));
+	updateGuidoDisplay();
+
+	if (perf)
+	{
+		delete perf;
+	}
+
+	perf = new MidiPerformance;
+
+	GudioFillMidiPerformance(ar, perf);
+
+	connect(perf, SIGNAL(performanceFinished(bool)), this, SLOT(performanceFinished(bool)));
+
+    connect(perf, SIGNAL(currentTickUpdated(int32_t, int32_t)), this, SLOT(currentTickUpdated(int32_t, int32_t)));
+
+    connect(perf, SIGNAL(noteHit(int8_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, void*)),
+    		this, SLOT(noteHit(int8_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, void*)));
+
+    connect(perf, SIGNAL(noteMissed(int8_t, int32_t, int32_t, int32_t, int32_t, void*)),
+    		this, SLOT(noteMissed(int8_t, int32_t, int32_t, int32_t, int32_t, void*)));
+
+    perf->setTempo(120);
+
+	metronome->setTicksPerMinute(120);
+	metronome->setTicksPerMeasure(4);
+	metronome->setNumSubdivisions(2);
+
+
+
+	//metronome->startAtWithLength(GetMultimediaTimerMilliseconds() + 500, 8, 4);
+
+	uint32_t numMetronomeTicks = (uint32_t) ceilf((musicDurationNum / (float) musicDurationDenom) * 4);
+	metronome->startAtWithLength(GetMultimediaTimerMilliseconds() + 500, numMetronomeTicks, 4);
+
+	QTimer::singleShot(2000 + 500, this, SLOT(startPerformance()));
 }
 
 
@@ -238,6 +182,9 @@ void SightReadingWidget::currentTickUpdated(int32_t num, int32_t denom)
 		//noteMarker->clearCorrectPlayMarkers();
 	}
 
+	ui.guidoWidget->setPerformanceMarker(num, denom);
+
+#if 0
 	if (noteMarker->setPerformanceMarker(num, denom))
 	{
 		/*uint64_t ts = GetMultimediaTimerMilliseconds();
@@ -246,11 +193,7 @@ void SightReadingWidget::currentTickUpdated(int32_t num, int32_t denom)
 
 		updateGuidoDisplay();
 	}
-
-	//updateGuidoDisplay();
-	//ar->refCount += 2;
-	//ui.guidoWidget->setARHandler(ar);
-	//ar->refCount -= 1;
+#endif
 }
 
 
@@ -285,4 +228,17 @@ void SightReadingWidget::noteMissed (
 
 void SightReadingWidget::onGenerate()
 {
+	if (metronome)
+	{
+		metronome->stop();
+	}
+	if (perf)
+	{
+		perf->stop();
+	}
+
+	noteMarker->clear();
+	updateGuidoDisplay();
+
+	QTimer::singleShot(1000, this, SLOT(startPerformanceCountoff()));
 }

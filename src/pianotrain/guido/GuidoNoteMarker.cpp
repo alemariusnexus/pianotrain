@@ -21,7 +21,7 @@
 GuidoNoteMarker::GuidoNoteMarker(ARHandler ar, QObject* parent)
 		: QObject(parent), ar(ar), perfMarkerNoteColor(QColor(0, 255, 0)), perfMarkerRestColor(QColor(0, 255, 0, 127)),
 		  curPerfMarkerStartTimepos(TYPE_TIMEPOSITION(-1, 1)), curPerfMarkerEndTimepos(TYPE_TIMEPOSITION(-1, 1)),
-		  corrPlayColor(QColor(0, 127, 255)), missedNoteColor(QColor(255, 0, 0))
+		  corrPlayColor(QColor(0, 255, 0)), missedNoteColor(QColor(255, 0, 0))
 {
 }
 
@@ -45,6 +45,9 @@ void GuidoNoteMarker::clearPerformanceMarker()
 				arvc->RemoveElement(obj);
 			}
 			curPerfMarkerObjs.clear();
+
+			curPerfMarkerStartTimepos = TYPE_TIMEPOSITION(-1, 1);
+			curPerfMarkerEndTimepos = TYPE_TIMEPOSITION(-1, 1);
 
 			break;
 		}

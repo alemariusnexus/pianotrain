@@ -8,32 +8,11 @@
 #include <Guido/GUIDOParse.h>
 #include <Guido/GUIDOEngine.h>
 #include <ui_SightReadingWidget.h>
+#include "Metronome.h"
 #include "guido/GuidoNoteMarker.h"
 
 class MidiPerformance;
 
-
-
-class MetronomeThread : public QThread
-{
-	Q_OBJECT
-
-public:
-	MetronomeThread(QObject* parent = nullptr) : QThread(parent) {}
-
-protected:
-	virtual void run();
-
-private slots:
-	void eventLoopTick();
-	void metronomeTick();
-
-private:
-	uint32_t metronomeTickCounter;
-	QSoundEffect* metronomeFullTickSound;
-	QSoundEffect* metronomeHalfTickSound;
-	uint64_t nextMetronomeTick;
-};
 
 
 class SightReadingWidget : public QWidget
@@ -46,13 +25,15 @@ public:
 private:
 	void updateGuidoDisplay();
 
-	void delayMilliseconds(uint64_t ms);
-
 private slots:
 	void startPerformanceCountoff();
 	void startPerformance();
+	void interruptStuff();
 
 	void onGenerate();
+
+	void performanceFinished(bool stopped);
+
 	void currentTickUpdated(int32_t num, int32_t denom);
 
 	void noteHit (
@@ -76,9 +57,10 @@ private:
 	GuidoNoteMarker* noteMarker;
 	uint64_t perfStartTime;
 
-	uint32_t metronomeTickCounter;
-	QSoundEffect* metronomeFullTickSound;
-	QSoundEffect* metronomeHalfTickSound;
+	Metronome* metronome;
+	uint32_t musicDurationNum;
+	uint32_t musicDurationDenom;
+	//MetronomeThread* metronomeThread;
 };
 
 #endif /* SIGHTREADINGWIDGET_H_ */

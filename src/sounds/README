@@ -1,4 +1,5 @@
 These sounds were taken from the samples included in OpenMetronome, released under the GNU General Public License Version 3.
 
-metronome_full.wav is taken from "Bass Drum 1.wav"
-metronome_half.wav is taken from "Tambourine.wav"
+metronome_measure_start.wav is taken from "Bass Drum 1.wav"
+metronome_measure_tick.wav is taken from "Claves.wav"
+metronome_measure_subtick.wav is taken from "Maracas.wav"

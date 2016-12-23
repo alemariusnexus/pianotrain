@@ -12,7 +12,7 @@ using std::max;
 
 
 MidiPerformance::MidiPerformance(QObject* parent)
-		: QObject(parent), nextStart(0), noteNameOctaveOffset(-1), chordActive(false)
+		: QObject(parent), nextStart(0), perfThread(nullptr), noteNameOctaveOffset(-1), chordActive(false)
 {
 	auto graceFunc = [](int32_t& graceNum, int32_t& graceDenom, int32_t lenNum, int32_t lenDenom) {
     	graceNum = lenNum;
@@ -28,6 +28,12 @@ MidiPerformance::MidiPerformance(QObject* parent)
     };
 
 	setTimingGracePeriodRelativeFunction(graceFunc);
+}
+
+
+MidiPerformanceThread::MidiPerformanceThread(MidiPerformance* perf, QObject* parent)
+		: QThread(parent), perf(perf), stopped(false)
+{
 }
 
 
@@ -185,23 +191,37 @@ void MidiPerformance::start()
 {
 	MidiService* midi = MidiService::getInstance();
 
+	// Stop any performance thread that might still be running
+	stop();
+
 	connect(midi, SIGNAL(messageReceived(uint8_t, uint8_t, uint8_t, uint64_t)),
-			this, SLOT(midiMessageReceived(uint8_t, uint8_t, uint8_t, uint64_t)));
+			this, SLOT(midiMessageReceived(uint8_t, uint8_t, uint8_t, uint64_t)), Qt::UniqueConnection);
 
 	perfStartTimestamp = GetMultimediaTimerMilliseconds();
 
-	perfThread = std::thread(&MidiPerformance::performanceThreadMain, this);
+	perfThread = new MidiPerformanceThread(this);
+
+	connect(perfThread, SIGNAL(finished()), this, SLOT(perfThreadFinished()));
+
+	perfThread->start();
+}
+
+
+void MidiPerformance::stop()
+{
+	if (perfThread)
+	{
+		perfThread->stopped = true;
+	}
 }
 
 
 void MidiPerformance::hitNote(int8_t midiKey, int32_t timeNum, int32_t timeDenom)
 {
-	//Note* closestNote = nullptr;
 	int32_t closestStartTick = -1;
 	QList<Note*> closestNotes;
 
 	int32_t tick = noteLengthToTickCount(timeNum, timeDenom);
-	//int32_t tick = getPerformanceTick(timestamp);
 
 	//printf("> Note %d hit at %d, %d\n", midiKey, timeNum, timeDenom);
 	//fflush(stdout);
@@ -292,9 +312,6 @@ void MidiPerformance::releaseNote(uint8_t midiKey)
 
 void MidiPerformance::midiMessageReceived(uint8_t status, uint8_t data1, uint8_t data2, uint64_t timestamp)
 {
-	//printf("MIDI MSG\n");
-	//fflush(stdout);
-
 	int32_t channel = status & 0xF;
 	int32_t cmd = status & 0xF0;
 
@@ -336,7 +353,7 @@ void MidiPerformance::midiMessageReceived(uint8_t status, uint8_t data1, uint8_t
 }
 
 
-void MidiPerformance::performanceThreadMain()
+void MidiPerformanceThread::run()
 {
 	bool notesOpen;
 
@@ -344,36 +361,35 @@ void MidiPerformance::performanceThreadMain()
 	{
 		notesOpen = false;
 
-		int32_t currentTick = getPerformanceTick();
+		int32_t currentTick = perf->getPerformanceTick();
 
-		emit currentTickUpdated(currentTick, MIDI_PERFORMANCE_LEN_WHOLE);
+		perf->notifyCurrentTickUpdated(currentTick, MIDI_PERFORMANCE_LEN_WHOLE);
 
-		for (Note& note : notes)
+		for (MidiPerformance::Note& note : perf->notes)
 		{
 			if (!note.hit  &&  !note.missed)
 			{
-				notesOpen = true;
+				//notesOpen = true;
 
-				int32_t gracePeriod = gracePeriodFunc(note.lenNum, note.lenDenom);
+				int32_t gracePeriod = perf->gracePeriodFunc(note.lenNum, note.lenDenom);
 
 				if (note.startTick+gracePeriod < currentTick)
 				{
 					note.missed = true;
-					reportMissedNote(note);
+					perf->reportMissedNote(note);
 				}
+			}
+
+			int32_t noteEnd = note.startTick + perf->noteLengthToTickCount(note.lenNum, note.lenDenom);
+
+			if (noteEnd > currentTick)
+			{
+				notesOpen = true;
 			}
 		}
 
 		SleepMilliseconds(1);
-	} while (notesOpen);
-
-	/*SleepMilliseconds(500);
-
-	for (Note& note : notes)
-	{
-		printf("Note - hit:%s, missed:%s\n", note.hit ? "1" : "0", note.missed ? "1" : "0");
-		fflush(stdout);
-	}*/
+	} while (notesOpen  &&  !stopped);
 }
 
 
@@ -413,4 +429,29 @@ void MidiPerformance::reportWrongNote(int32_t hitNum, int32_t hitDenom, const QL
 	// TODO: Currently not implemented separately
 	reportExcessNote(hitNum, hitDenom, playedMidiKey);
 	//emit noteWrong(playedMidiKey, hitNum, hitDenom);
+}
+
+
+void MidiPerformance::notifyCurrentTickUpdated(int32_t num, int32_t denom)
+{
+	emit currentTickUpdated(num, denom);
+}
+
+
+void MidiPerformance::perfThreadFinished()
+{
+	// NOTE: This routine is executed in the main thread, NOT in the performance thread
+
+	MidiPerformanceThread* thr = (MidiPerformanceThread*) sender();
+
+	bool stopped = thr->stopped;
+
+	if (perfThread == thr)
+	{
+		perfThread = nullptr;
+	}
+
+	thr->deleteLater();
+
+	emit performanceFinished(stopped);
 }

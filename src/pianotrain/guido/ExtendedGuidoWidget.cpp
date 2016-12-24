@@ -299,6 +299,4 @@ void ExtendedGuidoWidget::paintEvent(QPaintEvent* event)
 
 		paintPerformanceMarker(perfMarkerRect);
 	}
-
-	update();
 }

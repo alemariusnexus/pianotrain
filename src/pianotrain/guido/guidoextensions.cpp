@@ -5,6 +5,7 @@
 #include <Guido/abstract/ARMusicalObject.h>
 #include <Guido/abstract/ARNote.h>
 #include <Guido/abstract/ARRest.h>
+#include <Guido/abstract/ARKey.h>
 #include <Guido/abstract/ARMusicalVoice.h>
 #include <Guido/abstract/ARMusicalVoiceState.h>
 #include <Guido/abstract/ARNoteFormat.h>
@@ -13,6 +14,7 @@
 #include <Guido/graphic/GRSystem.h>
 #include <Guido/graphic/GRStaff.h>
 #include <Guido/graphic/GREvent.h>
+#include <Guido/graphic/GRKey.h>
 #include <Guido/misc/kf_ivect.h>
 #include <Guido/lib/GUIDOInternal.h>
 #include <cassert>
@@ -339,6 +341,48 @@ QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float 
 
 
 
+	// NOTE: This was previously done to get the current key signature (to calculate which accidentals
+	// are needed. I removed it, because to determine the correct accidentals, we also need to take
+	// accidentals of the previous notes in the same measure into account, which is a pain in the ass.
+	// Instead, I decided to ignore active accidentals (key signature etc.), which means that e.g.
+	// excess notes are always rendered with only sharps, as if the key signature was C major without
+	// additional accidentals.
+	// TODO: This is not optimal. Maybe change it?
+	/*// ********** Find key signature **********
+
+	const NEPointerList* staffElements = const_cast<GRStaff*>(bestStaff)->getElements();
+
+	const GRKey* activeKey = nullptr;
+
+	GuidoPos pos = staffElements->GetHeadPosition();
+	while (pos)
+	{
+		const GRNotationElement* elem = staffElements->GetNext(pos);
+		const GRKey* key = dynamic_cast<const GRKey*>(elem);
+
+		if (key)
+		{
+			TYPE_TIMEPOSITION keyStart = key->getRelativeTimePosition();
+
+			const ARKey* arKey = (const ARKey*) key->getAbstractRepresentation();
+			TYPE_DURATION dur = arKey->getDuration();
+
+			if (keyStart <= timepos)
+			{
+				// NOTE: The >= (as opposed to >) is crucial here. When a key signature changes, two GRKey elements
+				// will appear in the GR: The first one neutralizes the previous key signature (all naturals), and
+				// the second one introduces the new key signature. Obviously, we want the second one.
+				// TODO: This relies on the correct ordering of these elements. They appear at the same timepos, so
+				// can we really rely on that?
+				if (!activeKey  ||  keyStart >= activeKey->getRelativeTimePosition())
+				{
+					activeKey = key;
+				}
+			}
+		}
+	}*/
+
+
 	// ********** Find a list of possible anchors for the note, find y position **********
 
 	struct NoteAnchor
@@ -412,6 +456,9 @@ QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float 
 			}
 		});
 		bestStaff->GetMap(kGuidoEvent, eventCollector, infos);
+
+		printf("\n");
+		fflush(stdout);
 
 		// Collect the staff itself
 		FunctionalMapCollector<void> staffCollector(nullptr,

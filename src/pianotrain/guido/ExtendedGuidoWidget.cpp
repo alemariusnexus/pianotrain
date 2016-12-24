@@ -264,6 +264,8 @@ void ExtendedGuidoWidget::paintEvent(QPaintEvent* event)
 
 		// Draw an accidental if necessary
 		// TODO: Respect key signature!
+		// 		NOTE:  Not only key signature, also accidentals of previous notes in the same measure...
+		//			   Code to find the key signature is commented out in GuidoApproximateNoteGraphicalPosition()
 
 		int accidentalSymbol = kNoneSymbol;
 

@@ -49,18 +49,20 @@ private slots:
 			int32_t lenNum, int32_t lenDenom,
 			void* userData );
 
+	void noteExcess (
+			int8_t midiKey,
+			int32_t hitNum, int32_t hitDenom );
+
 private:
 	Ui_SightReadingWidget ui;
 	QTimer* metronomeTimer;
 	ARHandler ar;
 	MidiPerformance* perf;
 	GuidoNoteMarker* noteMarker;
-	uint64_t perfStartTime;
 
 	Metronome* metronome;
 	uint32_t musicDurationNum;
 	uint32_t musicDurationDenom;
-	//MetronomeThread* metronomeThread;
 };
 
 #endif /* SIGHTREADINGWIDGET_H_ */

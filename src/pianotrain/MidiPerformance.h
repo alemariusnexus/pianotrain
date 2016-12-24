@@ -88,6 +88,8 @@ public:
 
 	void stop();
 
+	bool isPerformanceRunning() const;
+
 	void hitNote(int8_t midiKey, int32_t timeNum, int32_t timeDenom);
 	void hitNote(int8_t midiKey, uint64_t timestamp);
 	void hitNote(int8_t midiKey);

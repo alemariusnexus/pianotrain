@@ -7,6 +7,12 @@
 #include <GuidoQt/QGuidoGraphicsItem.h>
 #include <Guido/lib/GUIDOInternal.h>
 #include <Guido/abstract/ARMusic.h>
+#include <Guido/abstract/ARNote.h>
+#include <Guido/graphic/GRMusic.h>
+#include <Guido/graphic/GRVoice.h>
+#include <Guido/graphic/GRNote.h>
+#include <Guido/graphic/GRStaff.h>
+#include <Guido/graphic/GRSingleNote.h>
 #include <nxcommon/util.h>
 #include "guido/guidoextensions.h"
 #include "MidiPerformance.h"
@@ -31,6 +37,8 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 	//const char* guidoStr = "[ \\clef<\"treble\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ]";
 	/*const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ], "
 			"[ \\clef<\"bass\"> c0/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b-1/8 f0 g _ {b-1/2,f0,g} | {c/1,e,g} | c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b-1/8 f0 g _ {b-1/2,f0,g} | {c/1,e,g} ] }";*/
+	const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b0/8 f1 g _ {b0/2,f1,g} | {c/1,e,g} ], "
+			"[ \\clef<\"bass\"> c0/8 e g _ {c/2,e,g} | c/8 f a _ {c/2,f,a} | c/8 e g _ {c/2,e,g} | b-1/8 f0 g _ {b-1/2,f0,g} | {c/1,e,g} ] }";
 	//const char* guidoStr = "[ \\restFormat<color=\"red\">(_/4) ]";
 	//const char* guidoStr = "[ c/8 _ d ]";
 	//const char* guidoStr = "[ c/1 g ]";
@@ -42,55 +50,50 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 	//const char* guidoStr = "[ c {c/4,d/4,e/4} c ]";
 	//const char* guidoStr = "[ c c ]";
 	//const char* guidoStr = "[ c/4 d/4 e/4 ]";
-	const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 d e f g a b c2], [ \\clef<\"bass\"> c0/4 d e f ] }";
+	//const char* guidoStr = "{ [ c# ] }";
+	//const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 {d,f} e f g \\newLine a b c2], [ \\clef<\"bass\"> c0/4 d e f ] }";
 	//const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 d], [ \\clef<\"bass\"> _/4 ] }";
 
 	GuidoParser* parser = GuidoOpenParser();
 	ar = GuidoString2AR(parser, guidoStr);
 	//ar = GuidoFile2AR(parser, "E:/source/guidolib-1.60-src/gmn-examples/lyrics/bach_lyrics.gmn");
 
+
+	noteMarker = new GuidoNoteMarker(ar);
+	ui.guidoWidget->setARHandler(ar);
+
 	TYPE_DURATION dur = ar->armusic->getDuration();
 	musicDurationNum = dur.getNumerator();
 	musicDurationDenom = dur.getDenominator();
 
-	noteMarker = new GuidoNoteMarker(ar);
-
-	/*printf("\n=== NEW AST ===\n");
-	GuidoPrintAR(ar, std::cout);
-	printf("\n");
-	fflush(stdout);
-
-	printf("\n");
-	printf("=== MARKING 1 ===\n");
-	noteMarker->markMissedNote(60, 0, 4);
-
-	printf("\n=== NEW AST ===\n");
-	GuidoPrintAR(ar, std::cout);
-	printf("\n");
-	fflush(stdout);
-
-	printf("\n");
-	printf("=== MARKING 2 ===\n");
-	noteMarker->markMissedNote(62, 1, 4);
-
-	printf("\n");
-	fflush(stdout);
-	noteMarker->markMissedNote(65, 1, 4);
-	noteMarker->markMissedNote(71, 2, 4);
-
-	printf("\n=== NEW AST ===\n");
-	GuidoPrintAR(ar, std::cout);
-	printf("\n");
-	fflush(stdout);*/
+	/*noteMarker = new GuidoNoteMarker(ar);
 
 	ui.guidoWidget->setARHandler(ar);
 
+	CGRHandler gr = ui.guidoWidget->getGRHandler();
+
+
+
+	GRVoice* voice = gr->grmusic->getVoice(1);
+	GRStaff* staff = voice->getGRStaff();
+
+	ARNote* newARNote = new ARNote(TYPE_TIMEPOSITION(0, 1), TYPE_DURATION(1, 1));
+	newARNote->setPitch(NOTE_A);
+	newARNote->setOctave(5);
+
+	GRNote* newGRNote = new GRNote(staff, newARNote, TYPE_TIMEPOSITION(3, 8), TYPE_DURATION(1, 8));
+
+	voice->AddTail(newGRNote);*/
+
+
+	/*ui.guidoWidget->addExcessNote(17, 10, NOTE_G, 1);
+	ui.guidoWidget->addExcessNote(29, 10, NOTE_F, 0);
+	ui.guidoWidget->addExcessNote(56, 10, NOTE_DIS, 1);
+	ui.guidoWidget->addExcessNote(87, 10, NOTE_DIS, 3);
+	ui.guidoWidget->addExcessNote(93, 10, NOTE_A, -2);*/
+
 
     metronome = new Metronome;
-
-    //QTimer::singleShot(1000, this, SLOT(startPerformanceCountoff()));
-
-    //QTimer::singleShot(5000, this, SLOT(interruptStuff()));
 }
 
 
@@ -103,23 +106,14 @@ void SightReadingWidget::interruptStuff()
 
 void SightReadingWidget::performanceFinished(bool stopped)
 {
-	//noteMarker->clearPerformanceMarker();
 	ui.guidoWidget->clearPerformanceMarker();
 
 	updateGuidoDisplay();
-
-	printf("Performance %s!\n", stopped ? "stopped" : "finished");
-	fflush(stdout);
-
-	//QTimer::singleShot(1000, this, SLOT(startPerformanceCountoff()));
 }
 
 
 void SightReadingWidget::startPerformance()
 {
-	printf("\n");
-
-	perfStartTime = GetMultimediaTimerMilliseconds();
 	perf->start();
 
 	fflush(stdout);
@@ -133,6 +127,7 @@ void SightReadingWidget::startPerformanceCountoff()
 
 	noteMarker->clear();
 	ui.guidoWidget->clearPerformanceMarker();
+	ui.guidoWidget->clearExcessNotes();
 
 	updateGuidoDisplay();
 
@@ -155,20 +150,19 @@ void SightReadingWidget::startPerformanceCountoff()
     connect(perf, SIGNAL(noteMissed(int8_t, int32_t, int32_t, int32_t, int32_t, void*)),
     		this, SLOT(noteMissed(int8_t, int32_t, int32_t, int32_t, int32_t, void*)));
 
-    perf->setTempo(120);
+    connect(perf, SIGNAL(noteExcess(int8_t, int32_t, int32_t)), this, SLOT(noteExcess(int8_t, int32_t, int32_t)));
 
-	metronome->setTicksPerMinute(120);
+    perf->setTempo(60);
+
+	metronome->setTicksPerMinute(60);
 	metronome->setTicksPerMeasure(4);
 	metronome->setNumSubdivisions(2);
 
 
-
-	//metronome->startAtWithLength(GetMultimediaTimerMilliseconds() + 500, 8, 4);
-
 	uint32_t numMetronomeTicks = (uint32_t) ceilf((musicDurationNum / (float) musicDurationDenom) * 4);
 	metronome->startAtWithLength(GetMultimediaTimerMilliseconds() + 500, numMetronomeTicks, 4);
 
-	QTimer::singleShot(2000 + 500, this, SLOT(startPerformance()));
+	QTimer::singleShot(4000 + 500, this, SLOT(startPerformance()));
 }
 
 
@@ -182,23 +176,7 @@ void SightReadingWidget::updateGuidoDisplay()
 
 void SightReadingWidget::currentTickUpdated(int32_t num, int32_t denom)
 {
-	if (num / (float) denom > 0.5f)
-	{
-		//noteMarker->clearCorrectPlayMarkers();
-	}
-
 	ui.guidoWidget->setPerformanceMarker(num, denom);
-
-#if 0
-	if (noteMarker->setPerformanceMarker(num, denom))
-	{
-		/*uint64_t ts = GetMultimediaTimerMilliseconds();
-		printf("Perf marker set at %llu\n", (long long unsigned) ts);
-		fflush(stdout);*/
-
-		updateGuidoDisplay();
-	}
-#endif
 }
 
 
@@ -209,9 +187,6 @@ void SightReadingWidget::noteHit (
 		int32_t lenNum, int32_t lenDenom,
 		void* userData
 ) {
-	//printf("At %d, %d: Hit note %d\n", hitNum, hitDenom, midiKey);
-	//fflush(stdout);
-
 	noteMarker->markCorrectPlay(midiKey, startNum, startDenom);
 	updateGuidoDisplay();
 }
@@ -228,6 +203,14 @@ void SightReadingWidget::noteMissed (
 
 	//noteMarker->markMissedNote(midiKey, startNum, startDenom);
 	//updateGuidoDisplay();
+}
+
+
+void SightReadingWidget::noteExcess (
+		int8_t midiKey,
+		int32_t hitNum, int32_t hitDenom
+) {
+	ui.guidoWidget->addExcessNote(hitNum, hitDenom, midiKey);
 }
 
 

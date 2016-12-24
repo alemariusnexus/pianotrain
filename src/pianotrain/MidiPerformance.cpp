@@ -216,8 +216,19 @@ void MidiPerformance::stop()
 }
 
 
+bool MidiPerformance::isPerformanceRunning() const
+{
+	return perfThread != nullptr;
+}
+
+
 void MidiPerformance::hitNote(int8_t midiKey, int32_t timeNum, int32_t timeDenom)
 {
+	if (!isPerformanceRunning())
+	{
+		return;
+	}
+
 	int32_t closestStartTick = -1;
 	QList<Note*> closestNotes;
 

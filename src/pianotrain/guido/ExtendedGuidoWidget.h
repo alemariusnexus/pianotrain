@@ -4,6 +4,10 @@
 #include <GuidoQt/QGuidoWidget.h>
 
 
+class GSystemQt;
+
+
+
 class ExtendedGuidoWidget : public QGuidoWidget
 {
 	Q_OBJECT
@@ -16,6 +20,15 @@ public:
 		MarkLeftmost
 	};
 
+private:
+	struct ExcessNote
+	{
+		int32_t timeNum;
+		int32_t timeDenom;
+		int pitch;
+		int octave;
+	};
+
 public:
 	ExtendedGuidoWidget(QWidget* parent = nullptr);
 
@@ -24,6 +37,10 @@ public:
 
 	void setPerformanceMarker(int32_t markerNum, int32_t markerDenom);
 	void clearPerformanceMarker();
+
+	void addExcessNote(int32_t timeNum, int32_t timeDenom, int pitch, int octave);
+	void addExcessNote(int32_t timeNum, int32_t timeDenom, int8_t midiKey);
+	void clearExcessNotes();
 
 protected:
 	void paintEvent(QPaintEvent* event);
@@ -38,8 +55,13 @@ private:
 	QColor performanceMarkerColor;
 	int32_t performanceMarkerNum;
 	int32_t performanceMarkerDenom;
+	QList<ExcessNote> excessNotes;
 
 	QRect lastPerformanceMarkerRect;
+
+	/*QPainter* guidoPainter;
+	GSystemQt* guidoSys;
+	VGDevice* guidoDev;*/
 };
 
 #endif /* EXTENDEDGUIDOWIDGET_H_ */

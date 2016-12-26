@@ -25,31 +25,64 @@ using std::max;
 
 
 ExtendedGuidoWidget::ExtendedGuidoWidget(QWidget* parent)
-		: QGuidoWidget(parent), performanceMarkerMode(MarkAllSimultaneous), performanceMarkerColor(QColor(0, 0, 255, 50)),
-		  performanceMarkerNum(-1), performanceMarkerDenom(1)
+		: QGuidoWidget(parent), blanked(false), overlayColor(255, 255, 255, 0)
+		/*: QGuidoWidget(parent), performanceMarkerMode(MarkAllSimultaneous), performanceMarkerColor(QColor(0, 0, 255, 50)),
+		  performanceMarkerNum(-1), performanceMarkerDenom(1), blanked(false), overlayColor(255, 255, 255, 0)*/
 {
+}
+
+
+void ExtendedGuidoWidget::setARHandler(ARHandler ar)
+{
+	ScoreWidgetBase::setARHandler(ar);
+	QGuidoWidget::setARHandler(ar);
+}
+
+
+CGRHandler ExtendedGuidoWidget::getGRHandler() const
+{
+	return QGuidoWidget::getGRHandler();
 }
 
 
 void ExtendedGuidoWidget::setPerformanceMarkerMode(PerformanceMarkerMode mode)
 {
-	if (performanceMarkerMode != mode)
+	PerformanceMarkerMode oldMode = perfMarkerMode;
+
+	ScoreWidgetBase::setPerformanceMarkerMode(mode);
+
+	if (mode != oldMode)
+	{
+		update();
+	}
+
+	/*if (performanceMarkerMode != mode)
 	{
 		performanceMarkerMode = mode;
 		update();
-	}
+	}*/
 }
 
 
-void ExtendedGuidoWidget::setPerformanceMarkerColor(const QColor& color)
+/*void ExtendedGuidoWidget::setPerformanceMarkerColor(const QColor& color)
 {
 	performanceMarkerColor = color;
-}
+}*/
 
 
 void ExtendedGuidoWidget::setPerformanceMarker(int32_t markerNum, int32_t markerDenom)
 {
-	performanceMarkerNum = markerNum;
+	ScoreWidgetBase::setPerformanceMarker(markerNum, markerDenom);
+
+	//QRect perfMarkerRect = calculatePerformanceMarkerRect(performanceMarkerNum, performanceMarkerDenom);
+	QRect perfMarkerRect = calculatePerformanceMarkerRect(perfMarkerNum, perfMarkerDenom);
+
+	if (perfMarkerRect != lastPerformanceMarkerRect)
+	{
+		update();
+	}
+
+	/*performanceMarkerNum = markerNum;
 	performanceMarkerDenom = markerDenom;
 
 	QRect perfMarkerRect = calculatePerformanceMarkerRect(performanceMarkerNum, performanceMarkerDenom);
@@ -57,18 +90,20 @@ void ExtendedGuidoWidget::setPerformanceMarker(int32_t markerNum, int32_t marker
 	if (perfMarkerRect != lastPerformanceMarkerRect)
 	{
 		update();
-	}
+	}*/
 }
 
 
 void ExtendedGuidoWidget::addExcessNote(int32_t timeNum, int32_t timeDenom, int pitch, int octave)
 {
-	ExcessNote note;
+	ScoreWidgetBase::addExcessNote(timeNum, timeDenom, pitch, octave);
+
+	/*ExcessNote note;
 	note.timeNum = timeNum;
 	note.timeDenom = timeDenom;
 	note.pitch = pitch;
 	note.octave = octave;
-	excessNotes << note;
+	excessNotes << note;*/
 
 	update();
 }
@@ -76,33 +111,81 @@ void ExtendedGuidoWidget::addExcessNote(int32_t timeNum, int32_t timeDenom, int 
 
 void ExtendedGuidoWidget::addExcessNote(int32_t timeNum, int32_t timeDenom, int8_t midiKey)
 {
-	int pitch, octave;
+	ScoreWidgetBase::addExcessNote(timeNum, timeDenom, midiKey);
+	update();
+
+	/*int pitch, octave;
 	GuidoMidiKeyToPitch(midiKey, pitch, octave);
-	addExcessNote(timeNum, timeDenom, pitch, octave);
+	addExcessNote(timeNum, timeDenom, pitch, octave);*/
 }
 
 
 void ExtendedGuidoWidget::clearExcessNotes()
 {
-	excessNotes.clear();
+	//excessNotes.clear();
+
+	ScoreWidgetBase::clearExcessNotes();
 	update();
 }
 
 
 void ExtendedGuidoWidget::clearPerformanceMarker()
 {
-	if (performanceMarkerNum != -1)
+	int32_t oldNum = perfMarkerNum;
+
+	ScoreWidgetBase::clearPerformanceMarker();
+
+	if (oldNum != -1)
+	{
+		update();
+	}
+
+	/*if (performanceMarkerNum != -1)
 	{
 		performanceMarkerNum = -1;
 
+		update();
+	}*/
+}
+
+
+void ExtendedGuidoWidget::setBlanked(bool blanked)
+{
+	if (this->blanked != blanked)
+	{
+		this->blanked = blanked;
 		update();
 	}
 }
 
 
+void ExtendedGuidoWidget::setOverlayColor(const QColor& overlayColor)
+{
+	if (this->overlayColor != overlayColor)
+	{
+		this->overlayColor = overlayColor;
+		update();
+	}
+}
+
+
+void ExtendedGuidoWidget::updateARHandler()
+{
+	ScoreWidgetBase::updateARHandler();
+
+	ar->refCount += 2;
+	QGuidoWidget::setARHandler(ar);
+	ar->refCount -= 1;
+
+	update();
+}
+
+
 QRect ExtendedGuidoWidget::calculatePerformanceMarkerRect(int32_t timeNum, int32_t timeDenom)
 {
-	CGRHandler gr = getGRHandler();
+	// TODO: Support for more than one page
+
+	CGRHandler gr = QGuidoWidget::getGRHandler();
 
 
 	// Find system rectangle (used to determine height of the marker rect)
@@ -111,6 +194,7 @@ QRect ExtendedGuidoWidget::calculatePerformanceMarkerRect(int32_t timeNum, int32
 	{
 		FloatRect rect;
 	} systemMapState;
+	systemMapState.rect = FloatRect(-1.0f, -1.0f, -1.0f, -1.0f);
 
 	auto systemMapCallback = [timeNum, timeDenom](SystemMapState* state,
 			const FloatRect& rect, const TimeSegment& ts, const GuidoElementInfos& info)
@@ -122,7 +206,7 @@ QRect ExtendedGuidoWidget::calculatePerformanceMarkerRect(int32_t timeNum, int32
 	};
 
 	FunctionalMapCollector<SystemMapState> systemMapCollector(&systemMapState, systemMapCallback);
-	GuidoGetMap(gr, 1, width(), height(), kGuidoSystem, systemMapCollector);
+	GuidoGetMap(gr, firstVisiblePage(), width(), height(), kGuidoSystem, systemMapCollector);
 
 
 	// Find event rectangle
@@ -155,7 +239,8 @@ QRect ExtendedGuidoWidget::calculatePerformanceMarkerRect(int32_t timeNum, int32
 			{
 				// Another event that starts at the same time
 
-				if (performanceMarkerMode == MarkAllSimultaneous)
+				//if (performanceMarkerMode == MarkAllSimultaneous)
+				if (perfMarkerMode == MarkAllSimultaneous)
 				{
 					// Expand the event rect
 					state->rect.left = min(state->rect.left, rect.left);
@@ -176,7 +261,13 @@ QRect ExtendedGuidoWidget::calculatePerformanceMarkerRect(int32_t timeNum, int32
 	};
 
 	FunctionalMapCollector<EventMapState> eventMapCollector(&eventMapState, eventMapCallback);
-	GuidoGetMap(gr, 1, width(), height(), kGuidoEvent, eventMapCollector);
+	GuidoGetMap(gr, firstVisiblePage(), width(), height(), kGuidoEvent, eventMapCollector);
+
+	if (systemMapState.rect.left < 0.0f  ||  eventMapState.bestStart.num < 0)
+	{
+		// Timepos not found on currently displayed page
+		return QRect();
+	}
 
 
 
@@ -191,16 +282,42 @@ QRect ExtendedGuidoWidget::calculatePerformanceMarkerRect(int32_t timeNum, int32
 
 void ExtendedGuidoWidget::paintPerformanceMarker(const QRect& markerRect)
 {
+	if (!markerRect.isNull())
+	{
+		QPainter painter(this);
+		//painter.fillRect(markerRect, performanceMarkerColor);
+		painter.fillRect(markerRect, perfMarkerColor);
+	}
+}
+
+
+void ExtendedGuidoWidget::paintOverlay()
+{
 	QPainter painter(this);
-	painter.fillRect(markerRect, performanceMarkerColor);
+	painter.setBrush(QBrush(overlayColor));
+	painter.setPen(QPen(overlayColor));
+	painter.drawRect(QRect(0, 0, width(), height()));
 }
 
 
 void ExtendedGuidoWidget::paintEvent(QPaintEvent* event)
 {
+	if (blanked)
+	{
+		QPainter painter(this);
+		painter.setBrush(QBrush(QColor(255, 255, 255)));
+		painter.setPen(QPen(QColor(255, 255, 255)));
+		painter.drawRect(QRect(0, 0, width(), height()));
+
+		paintOverlay();
+
+		return;
+	}
+
+
 	QGuidoWidget::paintEvent(event);
 
-	CGRHandler gr = getGRHandler();
+	CGRHandler gr = QGuidoWidget::getGRHandler();
 
 	QPainter painter(this);
 
@@ -244,47 +361,50 @@ void ExtendedGuidoWidget::paintEvent(QPaintEvent* event)
 	{
 		QList<QPointF> ledgerLinePositions;
 
-		QPointF pos = GuidoApproximateNoteGraphicalPosition(gr, 1, width(), height(), note.timeNum, note.timeDenom, note.pitch, note.octave,
-				&ledgerLinePositions);
+		int pagenum;
+		QPointF pos = GuidoApproximateNoteGraphicalPosition(gr, width(), height(), note.timeNum, note.timeDenom, note.pitch, note.octave,
+				pagenum, &ledgerLinePositions);
 
-
-		// Draw the note head
-		guidoDev->DrawMusicSymbol(pos.x() / scaleX - 0.5f*noteHeadExtX, pos.y() / scaleY, kFullHeadSymbol);
-
-
-		// Draw the ledger lines (if any)
-
-		float ledgerOffsetX = -60*0.85f; // From GRSingleNote::OnDraw(), where it's called "ledXPos"
-		for (QPointF llpos : ledgerLinePositions)
+		if (pagenum >= firstVisiblePage()  &&  pagenum <= lastVisiblePage())
 		{
-			guidoDev->DrawMusicSymbol(llpos.x() / scaleX + ledgerOffsetX, llpos.y() / scaleY, kLedgerLineSymbol);
-		}
+			// Draw the note head
+			guidoDev->DrawMusicSymbol(pos.x() / scaleX - 0.5f*noteHeadExtX, pos.y() / scaleY, kFullHeadSymbol);
+
+
+			// Draw the ledger lines (if any)
+
+			float ledgerOffsetX = -60*0.85f; // From GRSingleNote::OnDraw(), where it's called "ledXPos"
+			for (QPointF llpos : ledgerLinePositions)
+			{
+				guidoDev->DrawMusicSymbol(llpos.x() / scaleX + ledgerOffsetX, llpos.y() / scaleY, kLedgerLineSymbol);
+			}
 
 
 
-		// Draw an accidental if necessary
-		// TODO: Respect key signature!
-		// 		NOTE:  Not only key signature, also accidentals of previous notes in the same measure...
-		//			   Code to find the key signature is commented out in GuidoApproximateNoteGraphicalPosition()
+			// Draw an accidental if necessary
+			// TODO: Respect key signature!
+			// 		NOTE:  Not only key signature, also accidentals of previous notes in the same measure...
+			//			   Code to find the key signature is commented out in GuidoApproximateNoteGraphicalPosition()
 
-		int accidentalSymbol = kNoneSymbol;
+			int accidentalSymbol = kNoneSymbol;
 
-		if (note.pitch >= NOTE_CIS  &&  note.pitch <= NOTE_AIS)
-		{
-			accidentalSymbol = kSharpSymbol;
-		}
+			if (note.pitch >= NOTE_CIS  &&  note.pitch <= NOTE_AIS)
+			{
+				accidentalSymbol = kSharpSymbol;
+			}
 
-		if (accidentalSymbol != kNoneSymbol)
-		{
-			float accExtX, accExtY;
+			if (accidentalSymbol != kNoneSymbol)
+			{
+				float accExtX, accExtY;
 
-			// TODO: Optimize this. Might be slow and the result can be cached
-			FontManager::gFontScriab->GetExtent(accidentalSymbol, &accExtX, &accExtY, guidoDev);
+				// TODO: Optimize this. Might be slow and the result can be cached
+				FontManager::gFontScriab->GetExtent(accidentalSymbol, &accExtX, &accExtY, guidoDev);
 
-			// This is (basically) the actual formula used by GRAccidental::setAccidentalLayout(). Don't ask why.
-			float accidentalOffsetX = - (0.5*noteHeadExtX + 1.2f*0.5f*accExtX + 0.2f * 50.0f);
+				// This is (basically) the actual formula used by GRAccidental::setAccidentalLayout(). Don't ask why.
+				float accidentalOffsetX = - (0.5*noteHeadExtX + 1.2f*0.5f*accExtX + 0.2f * 50.0f);
 
-			guidoDev->DrawMusicSymbol(pos.x() / scaleX + accidentalOffsetX - 0.5f*noteHeadExtX, pos.y() / scaleY, accidentalSymbol);
+				guidoDev->DrawMusicSymbol(pos.x() / scaleX + accidentalOffsetX - 0.5f*noteHeadExtX, pos.y() / scaleY, accidentalSymbol);
+			}
 		}
 	}
 
@@ -294,11 +414,38 @@ void ExtendedGuidoWidget::paintEvent(QPaintEvent* event)
 	delete guidoSys;
 
 
-	if (performanceMarkerNum >= 0)
-	{
-		QRect perfMarkerRect = calculatePerformanceMarkerRect(performanceMarkerNum, performanceMarkerDenom);
-		lastPerformanceMarkerRect = perfMarkerRect;
 
+	//if (performanceMarkerNum >= 0)
+	if (perfMarkerNum >= 0)
+	{
+		//QRect perfMarkerRect = calculatePerformanceMarkerRect(performanceMarkerNum, performanceMarkerDenom);
+		QRect perfMarkerRect = calculatePerformanceMarkerRect(perfMarkerNum, perfMarkerDenom);
+		lastPerformanceMarkerRect = perfMarkerRect;
 		paintPerformanceMarker(perfMarkerRect);
 	}
+
+
+	paintOverlay();
+}
+
+
+QSize ExtendedGuidoWidget::sizeHint() const
+{
+	float largestRelativeHeight = -1.0f;
+	QSizeF largestSize;
+
+	for (int i = 1 ; i <= pageCount() ; i++)
+	{
+		QSizeF pgsize = mPageManager->pageSize(i);
+		float relativeHeight = pgsize.height() / pgsize.width();
+
+		if (largestRelativeHeight < 0.0f  ||  relativeHeight > largestRelativeHeight)
+		{
+			largestRelativeHeight = relativeHeight;
+			largestSize = pgsize;
+			fflush(stdout);
+		}
+	}
+
+	return largestSize.toSize();
 }

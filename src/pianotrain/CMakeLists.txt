@@ -1,15 +1,17 @@
 ADD_SUBDIRECTORY(guido)
+ADD_SUBDIRECTORY(qtlua)
 
 CONFIGURE_FILE(config.cmake.h "${CMAKE_CURRENT_BINARY_DIR}/config.h")
 
 SET(SRCS ${SRCS}
     pianotrain/main.cpp pianotrain/MainWindow.cpp pianotrain/MidiService.cpp pianotrain/SightReadingWidget.cpp pianotrain/MidiPerformance.cpp
-    pianotrain/Metronome.cpp
+    pianotrain/Metronome.cpp pianotrain/System.cpp pianotrain/DynamicWrapScoreWidget.cpp pianotrain/ScoreWidget.cpp
+    pianotrain/ScoreWidgetBase.cpp
     PARENT_SCOPE
     )
 SET(MOC_SRCS ${MOC_SRCS}
     pianotrain/MainWindow.h pianotrain/MidiService.h pianotrain/SightReadingWidget.h pianotrain/MidiPerformance.h
-    pianotrain/Metronome.h
+    pianotrain/Metronome.h pianotrain/System.h pianotrain/DynamicWrapScoreWidget.h pianotrain/ScoreWidget.h
     PARENT_SCOPE
     )
 SET(UIC_SRCS ${UIC_SRCS}

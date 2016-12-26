@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QWidget>
 #include <QFontDatabase>
+#include <QLibrary>
 
 #include <GuidoQt/QGuidoWidget.h>
 #include <GuidoQt/QGuidoPainter.h>
@@ -12,21 +13,19 @@
 #include <nxcommon/util.h>
 #include <nxcommon/CString.h>
 
+#include "System.h"
 #include "MainWindow.h"
 #include "MidiService.h"
 #include "MidiPerformance.h"
+#include "SightReadingWidget.h"
 
 
 
 
 int main(int argc, char** argv)
 {
-	/*printf("Go\n");
-	fflush(stdout);
-	return 0;*/
+	QApplication app(argc, argv);
 
-    QApplication app(argc, argv);
-    
     qRegisterMetaType<uint8_t>("uint8_t");
     qRegisterMetaType<uint16_t>("uint16_t");
     qRegisterMetaType<uint32_t>("uint32_t");
@@ -46,6 +45,10 @@ int main(int argc, char** argv)
     midi->startup();
 
     midi->openInput("Digital Piano");
+
+    System* system = System::getInstance();
+
+    system->setDataPath("C:/Users/alemariusnexus/workspace/pianotrain/src/data");
 
 
     int deviceId = -1;
@@ -169,8 +172,10 @@ int main(int argc, char** argv)
 	w.resize(800, 800);
 	w.show();*/
 
-    MainWindow* mainWin = new MainWindow;
-    mainWin->show();
+    system->setupLua();
+
+    //MainWindow* mainWin = new MainWindow;
+    //mainWin->show();
 
     int status = app.exec();
     

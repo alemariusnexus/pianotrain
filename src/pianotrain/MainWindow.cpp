@@ -13,11 +13,10 @@ MainWindow::MainWindow(QWidget* parent)
 	ui.setupUi(this);
 
 	srand(time(NULL));
+}
 
-	//ui.guidoWidget->setGMNCode("[ c/4 d e f \\bar g a b {c,e,g} ]", QString());
 
-	//connect(ui.generateButton, SIGNAL(clicked()), this, SLOT(onGenerate()));
-
-	/*QString gnmFile("E:/source/guidolib-1.60-src/gmn-examples/note/noteFormat.gmn");
-	ui.guidoWidget->setGMNFile(gnmFile);*/
+SightReadingWidget* MainWindow::getSightReadingWidget()
+{
+	return ui.sightReadingWidget;
 }

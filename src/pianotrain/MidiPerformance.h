@@ -35,8 +35,12 @@ public:
 protected:
 	virtual void run();
 
+private slots:
+	void eventLoopTick();
+
 public:
 	MidiPerformance* perf;
+	uint64_t performanceStartTime;
 	bool stopped;
 };
 
@@ -84,6 +88,7 @@ public:
 	void setTimingGracePeriodFunction(const std::function<int32_t(int32_t, int32_t)>& func);
 	void setTimingGracePeriodRelativeFunction(const std::function<void(int32_t&, int32_t&, int32_t, int32_t)>& func);
 
+	void startAt(uint64_t startTimestamp);
 	void start();
 
 	void stop();
@@ -153,7 +158,7 @@ private:
 	std::function<int32_t(int32_t, int32_t)> gracePeriodFunc;
 	//std::thread* perfThread;
 	MidiPerformanceThread* perfThread;
-	uint64_t perfStartTimestamp;
+	//uint64_t perfStartTimestamp;
 	int8_t noteNameOctaveOffset;
 
 	bool chordActive;

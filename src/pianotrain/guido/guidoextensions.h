@@ -47,8 +47,8 @@ void GuidoPrintAR(ARHandler ar, std::ostream& out);
 
 void GudioFillMidiPerformance(ARHandler ar, MidiPerformance* perf, const QList<int>& voiceNums = QList<int>());
 
-QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float width, float height, int32_t timeNum, int32_t timeDenom,
-		TYPE_PITCH notePitch, TYPE_REGISTER noteRegister, QList<QPointF>* ledgerLinePositions = nullptr);
+QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, float width, float height, int32_t timeNum, int32_t timeDenom,
+		TYPE_PITCH notePitch, TYPE_REGISTER noteRegister, int& pagenum, QList<QPointF>* ledgerLinePositions = nullptr);
 
 void GuidoCollectStaffs(CGRHandler gr, int pagenum, QList<const GRStaff*>& staffList, std::function<bool(const GRStaff*)> predicate);
 

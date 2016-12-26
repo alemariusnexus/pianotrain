@@ -1,5 +1,6 @@
 #include "MidiPerformance.h"
 #include "MidiService.h"
+#include <QtCore/QTimer>
 #include <cstdint>
 #include <climits>
 #include <algorithm>
@@ -187,7 +188,7 @@ void MidiPerformance::setNoteNameOctaveOffset(int8_t octaveOffset)
 }
 
 
-void MidiPerformance::start()
+void MidiPerformance::startAt(uint64_t startTimestamp)
 {
 	MidiService* midi = MidiService::getInstance();
 
@@ -197,13 +198,20 @@ void MidiPerformance::start()
 	connect(midi, SIGNAL(messageReceived(uint8_t, uint8_t, uint8_t, uint64_t)),
 			this, SLOT(midiMessageReceived(uint8_t, uint8_t, uint8_t, uint64_t)), Qt::UniqueConnection);
 
-	perfStartTimestamp = GetMultimediaTimerMilliseconds();
+	//perfStartTimestamp = GetMultimediaTimerMilliseconds();
 
 	perfThread = new MidiPerformanceThread(this);
+	perfThread->performanceStartTime = startTimestamp;
 
 	connect(perfThread, SIGNAL(finished()), this, SLOT(perfThreadFinished()));
 
 	perfThread->start();
+}
+
+
+void MidiPerformance::start()
+{
+	startAt(GetMultimediaTimerMilliseconds());
 }
 
 
@@ -218,7 +226,7 @@ void MidiPerformance::stop()
 
 bool MidiPerformance::isPerformanceRunning() const
 {
-	return perfThread != nullptr;
+	return perfThread != nullptr  &&  GetMultimediaTimerMilliseconds() >= perfThread->performanceStartTime;
 }
 
 
@@ -364,9 +372,67 @@ void MidiPerformance::midiMessageReceived(uint8_t status, uint8_t data1, uint8_t
 }
 
 
+void MidiPerformanceThread::eventLoopTick()
+{
+	uint64_t now = GetMultimediaTimerMilliseconds();
+
+	if (now >= performanceStartTime)
+	{
+		bool notesOpen = false;
+
+		int32_t currentTick = perf->getPerformanceTick();
+
+		if (!stopped)
+		{
+			perf->notifyCurrentTickUpdated(currentTick, MIDI_PERFORMANCE_LEN_WHOLE);
+
+			for (MidiPerformance::Note& note : perf->notes)
+			{
+				if (!note.hit  &&  !note.missed)
+				{
+					//notesOpen = true;
+
+					int32_t gracePeriod = perf->gracePeriodFunc(note.lenNum, note.lenDenom);
+
+					if (note.startTick+gracePeriod < currentTick)
+					{
+						note.missed = true;
+						perf->reportMissedNote(note);
+					}
+				}
+
+				int32_t noteEnd = note.startTick + perf->noteLengthToTickCount(note.lenNum, note.lenDenom);
+
+				if (noteEnd > currentTick)
+				{
+					notesOpen = true;
+				}
+			}
+		}
+
+		if (!notesOpen  ||  stopped)
+		{
+			this->exit(0);
+			return;
+		}
+	}
+	else if (stopped)
+	{
+		this->exit(0);
+		return;
+	}
+
+	QTimer::singleShot(0, this, SLOT(eventLoopTick()));
+}
+
+
 void MidiPerformanceThread::run()
 {
-	bool notesOpen;
+	QTimer::singleShot(0, this, SLOT(eventLoopTick()));
+
+	exec();
+
+	/*bool notesOpen;
 
 	do
 	{
@@ -400,13 +466,19 @@ void MidiPerformanceThread::run()
 		}
 
 		SleepMilliseconds(1);
-	} while (notesOpen  &&  !stopped);
+	} while (notesOpen  &&  !stopped);*/
 }
 
 
 int32_t MidiPerformance::getPerformanceTick(uint64_t timestamp) const
 {
-	float minutesSinceStart = (timestamp - perfStartTimestamp) / 60000.0f;
+	if (!isPerformanceRunning())
+	{
+		return -1;
+	}
+
+	//float minutesSinceStart = (timestamp - perfStartTimestamp) / 60000.0f;
+	float minutesSinceStart = (timestamp - perfThread->performanceStartTime) / 60000.0f;
 	return (int32_t) floorf(minutesSinceStart * ticksPerMinute + 0.5f);
 }
 

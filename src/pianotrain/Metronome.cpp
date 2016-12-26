@@ -197,6 +197,9 @@ void MetronomeThread::metronomeSubTick()
 
 	QSoundEffect* effectToPlay = nullptr;
 
+	/*printf("Fick dich at %llu\n", GetMultimediaTimerMilliseconds() - metronomeStartTime);
+	fflush(stdout);*/
+
 	if (metronomeTickCounter % subticksPerMeasure == 0)
 	{
 		effectToPlay = metronome->measureStartSounds[curMeasureStartSoundsIndex];

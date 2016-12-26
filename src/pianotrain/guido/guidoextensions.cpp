@@ -263,8 +263,8 @@ void GuidoCollectStaffs(CGRHandler gr, int pagenum, QList<const GRStaff*>& staff
 }
 
 
-QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float width, float height, int32_t timeNum, int32_t timeDenom,
-		TYPE_PITCH notePitch, TYPE_REGISTER noteRegister, QList<QPointF>* ledgerLinePositions)
+QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, float width, float height, int32_t timeNum, int32_t timeDenom,
+		TYPE_PITCH notePitch, TYPE_REGISTER noteRegister, int& pagenum, QList<QPointF>* ledgerLinePositions)
 {
 
 	// !!!!!!!!!! HERE BE DRAGONS !!!!!!!!!!
@@ -278,19 +278,15 @@ QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float 
 	// ********** Find all staffs that include the timepos **********
 
 	const GRMusic* music = gr->grmusic;
-	const GRPage* page = music->getPage(pagenum);
 
-	TYPE_TIMEPOSITION pageStart = page->getRelativeTimePosition();
-	TYPE_TIMEPOSITION pageEnd = page->getRelativeEndTimePosition();
-
-	// Clamp timepos to page duration
-	if (timepos < pageStart)
+	// Clamp timepos to music duration
+	if (timepos < TYPE_TIMEPOSITION(0, 1))
 	{
-		timepos = pageStart;
+		timepos = TYPE_TIMEPOSITION(0, 0);
 	}
-	else if (timepos > pageEnd)
+	else if (timepos > music->getDuration())
 	{
-		timepos = pageEnd;
+		timepos = TYPE_TIMEPOSITION(music->getDuration().getNumerator(), music->getDuration().getDenominator());
 	}
 
 	timeNum = timepos.getNumerator();
@@ -298,12 +294,18 @@ QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float 
 
 	QList<const GRStaff*> possibleStaffs;
 
-	GuidoCollectStaffs(gr, pagenum, possibleStaffs, [timepos](const GRStaff* staff) {
-		TYPE_TIMEPOSITION staffStart = staff->getRelativeTimePosition();
-		TYPE_TIMEPOSITION staffEnd = staff->getRelativeEndTimePosition();
+	int numPages = music->getNumPages();
+	for (int pagenum = 1 ; pagenum <= numPages ; pagenum++)
+	{
+		const GRPage* page = music->getPage(pagenum);
 
-		return timepos >= staffStart  &&  timepos <= staffEnd;
-	});
+		GuidoCollectStaffs(gr, pagenum, possibleStaffs, [timepos, pagenum](const GRStaff* staff) {
+			TYPE_TIMEPOSITION staffStart = staff->getRelativeTimePosition();
+			TYPE_TIMEPOSITION staffEnd = staff->getRelativeEndTimePosition();
+
+			return timepos >= staffStart  &&  timepos <= staffEnd;
+		});
+	}
 
 
 
@@ -338,6 +340,9 @@ QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float 
 
 	// TODO: Find a better way to select the best among equally close staffs
 	const GRStaff* bestStaff = closestStaffs[0];
+
+	const GRPage* page = bestStaff->getGRSystem()->getGRPage();
+	pagenum = music->getPageIndex(page);
 
 
 
@@ -389,7 +394,6 @@ QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float 
 	{
 		TYPE_TIMEPOSITION startPos;
 		float x;
-		const char* type;
 	};
 
 	QList<NoteAnchor> possibleAnchors;
@@ -399,7 +403,7 @@ QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float 
 
 	float posY = 0.0f;
 
-	if (page  &&  bestStaff)
+	if (bestStaff)
 	{
 		// NOTE: Much of this code mirrors GRSystem::GetMap() and the various GetMap() calls done from there
 		//
@@ -451,29 +455,23 @@ QPointF GuidoApproximateNoteGraphicalPosition(CGRHandler gr, int pagenum, float 
 				NoteAnchor anchor;
 				anchor.startPos = TYPE_TIMEPOSITION(ts.first.num, ts.first.denom);
 				anchor.x = 0.5f * (rect.left + rect.right);
-				anchor.type = "event";
 				possibleAnchors << anchor;
 			}
 		});
 		bestStaff->GetMap(kGuidoEvent, eventCollector, infos);
 
-		printf("\n");
-		fflush(stdout);
-
-		// Collect the staff itself
+		// Collect the staff itself!
 		FunctionalMapCollector<void> staffCollector(nullptr,
 				[&possibleAnchors](void*, const FloatRect& rect, const TimeSegment& ts, const GuidoElementInfos& info)
 		{
 			NoteAnchor startAnchor;
 			startAnchor.startPos = TYPE_TIMEPOSITION(ts.first.num, ts.first.denom);
 			startAnchor.x = rect.left;
-			startAnchor.type = "staff start";
 			possibleAnchors << startAnchor;
 
 			NoteAnchor endAnchor;
 			endAnchor.startPos = TYPE_TIMEPOSITION(ts.second.num, ts.second.denom);
 			endAnchor.x = rect.right;
-			endAnchor.type = "staff end";
 			possibleAnchors << endAnchor;
 		});
 		bestStaff->GetMap(kGuidoStaff, staffCollector, infos);

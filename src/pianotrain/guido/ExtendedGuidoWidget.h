@@ -2,45 +2,42 @@
 #define EXTENDEDGUIDOWIDGET_H_
 
 #include <GuidoQt/QGuidoWidget.h>
+#include "ScoreWidgetBase.h"
 
 
 class GSystemQt;
 
 
 
-class ExtendedGuidoWidget : public QGuidoWidget
+
+//class ExtendedGuidoWidget : public QGuidoWidget
+class ExtendedGuidoWidget : public QGuidoWidget, public ScoreWidgetBase
 {
 	Q_OBJECT
 
 public:
-	// TODO: A "leftmost with tolerance" mode would be nice
-	enum PerformanceMarkerMode
-	{
-		MarkAllSimultaneous,
-		MarkLeftmost
-	};
-
-private:
-	struct ExcessNote
-	{
-		int32_t timeNum;
-		int32_t timeDenom;
-		int pitch;
-		int octave;
-	};
-
-public:
 	ExtendedGuidoWidget(QWidget* parent = nullptr);
 
-	void setPerformanceMarkerMode(PerformanceMarkerMode mode);
-	void setPerformanceMarkerColor(const QColor& color);
+	virtual void setARHandler(ARHandler ar);
 
-	void setPerformanceMarker(int32_t markerNum, int32_t markerDenom);
-	void clearPerformanceMarker();
+	virtual CGRHandler getGRHandler() const;
 
-	void addExcessNote(int32_t timeNum, int32_t timeDenom, int pitch, int octave);
-	void addExcessNote(int32_t timeNum, int32_t timeDenom, int8_t midiKey);
-	void clearExcessNotes();
+	virtual void setPerformanceMarkerMode(PerformanceMarkerMode mode);
+
+	virtual void setPerformanceMarker(int32_t markerNum, int32_t markerDenom);
+	virtual void clearPerformanceMarker();
+
+	virtual void addExcessNote(int32_t timeNum, int32_t timeDenom, int pitch, int octave);
+	virtual void addExcessNote(int32_t timeNum, int32_t timeDenom, int8_t midiKey);
+	virtual void clearExcessNotes();
+
+	virtual void updateARHandler();
+
+	virtual void setBlanked(bool blanked);
+	virtual void setOverlayColor(const QColor& overlayColor);
+
+public:
+	QSize sizeHint() const;
 
 protected:
 	void paintEvent(QPaintEvent* event);
@@ -49,15 +46,19 @@ protected:
 
 private:
 	QRect calculatePerformanceMarkerRect(int32_t timeNum, int32_t timeDenom);
+	void paintOverlay();
 
 private:
-	PerformanceMarkerMode performanceMarkerMode;
+	/*PerformanceMarkerMode performanceMarkerMode;
 	QColor performanceMarkerColor;
 	int32_t performanceMarkerNum;
 	int32_t performanceMarkerDenom;
-	QList<ExcessNote> excessNotes;
+	QList<ExcessNote> excessNotes;*/
 
 	QRect lastPerformanceMarkerRect;
+
+	bool blanked;
+	QColor overlayColor;
 
 	/*QPainter* guidoPainter;
 	GSystemQt* guidoSys;

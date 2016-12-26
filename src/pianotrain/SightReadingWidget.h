@@ -1,6 +1,7 @@
 #ifndef SIGHTREADINGWIDGET_H_
 #define SIGHTREADINGWIDGET_H_
 
+#include <pianotrain/config.h>
 #include <QtCore/QTimer>
 #include <QtCore/QThread>
 #include <QSoundEffect>
@@ -15,6 +16,7 @@ class MidiPerformance;
 
 
 
+
 class SightReadingWidget : public QWidget
 {
 	Q_OBJECT
@@ -22,15 +24,16 @@ class SightReadingWidget : public QWidget
 public:
 	SightReadingWidget(QWidget* parent = nullptr);
 
-private:
-	void updateGuidoDisplay();
+	Q_INVOKABLE void startPerformanceCountoff();
 
 private slots:
-	void startPerformanceCountoff();
+	//void startPerformanceCountoff();
 	void startPerformance();
 	void interruptStuff();
 
 	void onGenerate();
+	void onPreviousPage();
+	void onNextPage();
 
 	void performanceFinished(bool stopped);
 
@@ -58,11 +61,17 @@ private:
 	QTimer* metronomeTimer;
 	ARHandler ar;
 	MidiPerformance* perf;
-	GuidoNoteMarker* noteMarker;
+	//GuidoNoteMarker* noteMarker;
 
 	Metronome* metronome;
 	uint32_t musicDurationNum;
 	uint32_t musicDurationDenom;
+
+	//QColor activeLineOverlayColor;
+	//QColor inactiveLineOverlayColor;
+
+	//int activePage;
 };
+
 
 #endif /* SIGHTREADINGWIDGET_H_ */

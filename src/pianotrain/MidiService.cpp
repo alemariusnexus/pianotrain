@@ -125,6 +125,7 @@ MidiService* MidiService::getInstance()
 
 void MidiService::startup()
 {
+	Pm_Initialize();
 }
 
 

@@ -1,8 +1,6 @@
 <RCC>
     <qresource prefix="/">
-        <file>fonts/guido2.ttf</file>
-        <file>sounds/metronome_measure_start.wav</file>
-        <file>sounds/metronome_measure_tick.wav</file>
-        <file>sounds/metronome_measure_subtick.wav</file>
+        <file>icons/zoom-in.png</file>
+        <file>icons/zoom-out.png</file>
     </qresource>
 </RCC>

@@ -25,14 +25,12 @@
 
 
 SightReadingWidget::SightReadingWidget(QWidget* parent)
-		: QWidget(parent), perf(nullptr), metronome(nullptr) //, activePage(-1),
-		  //activeLineOverlayColor(QColor(0, 0, 0, 0)), inactiveLineOverlayColor(QColor(0, 0, 0, 20))
+		: QWidget(parent), ar(nullptr), perf(nullptr), metronome(nullptr), tempo(60), rhythmMode(false)
 {
 	ui.setupUi(this);
 
+	connect(ui.startStopButton, SIGNAL(clicked()), this, SLOT(onStartStop()));
 	connect(ui.generateButton, SIGNAL(clicked()), this, SLOT(onGenerate()));
-	connect(ui.prevPageButton, SIGNAL(clicked()), this, SLOT(onPreviousPage()));
-	connect(ui.nextPageButton, SIGNAL(clicked()), this, SLOT(onNextPage()));
 
 	//const char* guidoStr = "[ {c,e} d e f {c,e,g} a b c2 d e f g a b ]";
 	//const char* guidoStr = "[ {c,d} e f ]";
@@ -59,7 +57,7 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 	//const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 {d,f} e f g \\newLine a b c2], [ \\clef<\"bass\"> c0/4 d e f ] }";
 	//const char* guidoStr = "{ [ \\clef<\"treble\"> c/8 d], [ \\clef<\"bass\"> _/4 ] }";
 	//const char* guidoStr = "{ [ \\pageFormat<\"A4\", 0, 0, 0, 0> c d e f | \\newPage g a b c2 | \\newPage d e f g | \\newPage a b c3 ] }";
-	const char* guidoStr = "{ [ \\pageFormat<10cm, 30cm, 1mm, 1mm, 1mm, 1mm> "
+	/*const char* guidoStr = "{ [ \\pageFormat<10cm, 30cm, 1mm, 1mm, 1mm, 1mm> "
 			"c d e f | \\newPage "
 			"g a b c2 | \\newPage "
 			"d e f g | \\newPage "
@@ -71,9 +69,17 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 			"g a b c2 | \\newPage "
 			"d e f g | \\newPage "
 			"a b c3 {c1,c2,c3} "
-			"] }";
+			"] }";*/
 
-	GuidoParser* parser = GuidoOpenParser();
+	//const char* guidoStr = "{ [ c \\space<5mm> d \\space<5mm> e \\space<5mm> f \\space<5mm> g \\space<5mm> a ] }";
+	//const char* guidoStr = "{ [ {c2/1,e,g} \\space<10mm> {c,f,a} \\space<10mm> {b1,f2,g} ] }";
+	//const char* guidoStr = "{ [ {g/1,b,d2} \\space<10mm> {g1,c2,e} \\space<10mm> {f#1,c2,d} ] }";
+	//const char* guidoStr = "{ [ \\pageFormat<7.5cm, 30cm, 1mm, 1mm, 1mm, 1mm> \\noteFormat<\"x\"> g/8 g/8 _/16 g/8. g/8 g/16 g/16 _/8 g/8 g/16 g/8. g/8 g/8 g/16 g/8. ] }";
+	const char* guidoStr = "{ [ c/2 \\space<6mm> g \\space<4mm> | {e/1,e2} \\space<4mm> | f2/2 \\space<6mm> c ] }";
+
+	//setGMNCode(guidoStr);
+
+	/*GuidoParser* parser = GuidoOpenParser();
 	ar = GuidoString2AR(parser, guidoStr);
 
 	ui.scoreWidget->setARHandler(ar);
@@ -81,38 +87,87 @@ SightReadingWidget::SightReadingWidget(QWidget* parent)
 
 	TYPE_DURATION dur = ar->armusic->getDuration();
 	musicDurationNum = dur.getNumerator();
-	musicDurationDenom = dur.getDenominator();
+	musicDurationDenom = dur.getDenominator();*/
 
 
     metronome = new Metronome;
 }
 
 
-void SightReadingWidget::interruptStuff()
+void SightReadingWidget::setGMNCode(const QString& code)
 {
-	metronome->stop();
-	perf->stop();
+	GuidoParser* parser = GuidoOpenParser();
+
+	std::cerr.setstate(std::iostream::failbit);
+	ARHandler newAR = GuidoString2AR(parser, code.toUtf8().constData());
+	std::cerr.clear();
+
+	if (newAR)
+	{
+		if (ar)
+		{
+			ar->refCount += 2;
+		}
+
+		ui.scoreWidget->setARHandler(newAR);
+
+		TYPE_DURATION dur = newAR->armusic->getDuration();
+		musicDurationNum = dur.getNumerator();
+		musicDurationDenom = dur.getDenominator();
+
+		if (ar)
+		{
+			ar->refCount -= 1;
+			GuidoFreeAR(ar);
+		}
+
+		ar = newAR;
+	}
+	else
+	{
+		int line;
+		int col;
+		const char* msg;
+
+		GuidoParserGetErrorCode(parser, line, col, &msg);
+
+		fprintf(stderr, "ERROR: Error parsing GMN code at %d:%d - %s\n", line, col, msg);
+	}
 }
 
 
-void SightReadingWidget::performanceFinished(bool stopped)
+void SightReadingWidget::setTempo(int32_t bpm)
 {
+	tempo = bpm;
+}
+
+
+void SightReadingWidget::setRhythmMode(bool rhythmMode)
+{
+	this->rhythmMode = rhythmMode;
+}
+
+
+void SightReadingWidget::performanceFinishedSlot(bool stopped)
+{
+	ui.startStopButton->setText("Start");
+
+	ui.scoreWidget->setShowFullScore(true);
+
+	perf->deleteLater();
+	perf = nullptr;
+
 	ui.scoreWidget->clearPerformanceMarker();
+
+	emit performanceFinished(stopped);
 }
 
 
 void SightReadingWidget::startPerformance()
 {
-	perf->start();
+	ui.startStopButton->setText("Stop");
 
-	fflush(stdout);
-}
-
-
-void SightReadingWidget::startPerformanceCountoff()
-{
-	printf("\n");
-	fflush(stdout);
+	ui.scoreWidget->setShowFullScore(false);
 
 	ui.scoreWidget->setActivePage(1);
 
@@ -127,7 +182,7 @@ void SightReadingWidget::startPerformanceCountoff()
 
 	GudioFillMidiPerformance(ar, perf);
 
-	connect(perf, SIGNAL(performanceFinished(bool)), this, SLOT(performanceFinished(bool)));
+	connect(perf, SIGNAL(performanceFinished(bool)), this, SLOT(performanceFinishedSlot(bool)));
 
     connect(perf, SIGNAL(currentTickUpdated(int32_t, int32_t)), this, SLOT(currentTickUpdated(int32_t, int32_t)));
 
@@ -139,17 +194,44 @@ void SightReadingWidget::startPerformanceCountoff()
 
     connect(perf, SIGNAL(noteExcess(int8_t, int32_t, int32_t)), this, SLOT(noteExcess(int8_t, int32_t, int32_t)));
 
-    perf->setTempo(120);
+    perf->setTempo(tempo);
+    perf->setRhythmMode(rhythmMode);
 
-	metronome->setTicksPerMinute(120);
+	/*metronome->setTicksPerMinute(120);
 	metronome->setTicksPerMeasure(4);
-	metronome->setNumSubdivisions(2);
+	metronome->setNumSubdivisions(2);*/
 
-
-	uint32_t numMetronomeTicks = (uint32_t) ceilf((musicDurationNum / (float) musicDurationDenom) * 4);
-	metronome->startAtWithLength(GetMultimediaTimerMilliseconds() + 500, numMetronomeTicks, 4);
+	uint32_t numMetronomeTicks = (uint32_t) ceilf((musicDurationNum / (float) musicDurationDenom) * metronome->getTicksPerMeasure());
+	metronome->startAtWithLength(GetMultimediaTimerMilliseconds() + 500, numMetronomeTicks, metronome->getTicksPerMeasure());
 
 	perf->startAt(metronome->getPerformanceBeginTime());
+}
+
+
+void SightReadingWidget::onGenerate()
+{
+	stopPerformance();
+
+	emit generateRequested();
+}
+
+
+void SightReadingWidget::stopPerformance()
+{
+	if (perf)
+	{
+		perf->stop();
+	}
+	if (metronome)
+	{
+		metronome->stop();
+	}
+}
+
+
+DynamicWrapScoreWidget* SightReadingWidget::getScoreWidget()
+{
+	return ui.scoreWidget;
 }
 
 
@@ -201,8 +283,10 @@ void SightReadingWidget::noteExcess (
 }
 
 
-void SightReadingWidget::onGenerate()
+void SightReadingWidget::onStartStop()
 {
+	bool perfActive = perf ? (perf->isPerformanceRunning()  ||  perf->isPerformanceScheduled()) : false;
+
 	if (metronome)
 	{
 		metronome->stop();
@@ -212,18 +296,9 @@ void SightReadingWidget::onGenerate()
 		perf->stop();
 	}
 
-	startPerformanceCountoff();
-}
-
-
-void SightReadingWidget::onPreviousPage()
-{
-	ui.scoreWidget->setActivePage(ui.scoreWidget->getActivePage() - 1);
-}
-
-
-void SightReadingWidget::onNextPage()
-{
-	ui.scoreWidget->setActivePage(ui.scoreWidget->getActivePage() + 1);
+	if (!perfActive)
+	{
+		startPerformance();
+	}
 }
 

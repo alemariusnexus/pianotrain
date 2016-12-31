@@ -2,15 +2,7 @@
 #define SYSTEM_H_
 
 #include <QtCore/QObject>
-#include <QtLua/State>
-
-extern "C" {
-
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-
-}
+#include <QUiLoader>
 
 
 
@@ -23,19 +15,21 @@ public:
 
 public:
 	void setDataPath(const QString& path);
-	void setupLua();
+
+	void setupScripting();
+
+	QString getDataPath() const;
+	QString getScriptPath() const;
+
+	void addPythonSystemPath(const QString& path);
+
+	Q_INVOKABLE QWidget* loadUiFile(const QString& filePath, QWidget* parent = nullptr);
 
 private:
 	System();
 
-	QString getScriptPath() const;
-
-private slots:
-	void luaOutput(const QString& str);
-
 private:
-	lua_State* lua;
-	QtLua::State* qtLua;
+	QList<QString> pythonSysPaths;
 	QString dataPath;
 };
 

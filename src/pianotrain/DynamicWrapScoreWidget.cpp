@@ -10,8 +10,15 @@ DynamicWrapScoreWidget::DynamicWrapScoreWidget(QWidget* parent)
 		: ScoreWidget(parent), activePage(1), numPreviousPages(0),
 		  activeLineOverlayColor(QColor(0, 0, 0, 0)), inactiveLineOverlayColor(QColor(0, 0, 0, 20))
 {
-	mainLayout = new QVBoxLayout(this);
-	setLayout(mainLayout);
+	ui.setupUi(this);
+
+	ui.mainStackWidget->setCurrentWidget(ui.fullScoreWidgetScrollAreaContainerWidget);
+
+	QSizePolicy policy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+	policy.setHeightForWidth(true);
+	ui.fullScoreWidget->setSizePolicy(policy);
+
+	ui.fullScoreWidget->setGridWidth(1);
 
 	setLineCount(2);
 	setActivePage(1);
@@ -20,12 +27,7 @@ DynamicWrapScoreWidget::DynamicWrapScoreWidget(QWidget* parent)
 
 int DynamicWrapScoreWidget::getPageCount() const
 {
-	if (lineWidgets.isEmpty())
-	{
-		return 0;
-	}
-
-	return lineWidgets[0]->pageCount();
+	return ui.fullScoreWidget->pageCount();
 }
 
 
@@ -35,7 +37,7 @@ void DynamicWrapScoreWidget::setLineCount(int lineCount)
 	{
 		for (ExtendedGuidoWidget* widget : lineWidgets)
 		{
-			mainLayout->removeWidget(widget);
+			ui.lineScoreContainerWidget->layout()->removeWidget(widget);
 			delete widget;
 		}
 
@@ -43,13 +45,16 @@ void DynamicWrapScoreWidget::setLineCount(int lineCount)
 
 		for (int i = 0 ; i < lineCount ; i++)
 		{
-			ExtendedGuidoWidget* guidoWidget = new ExtendedGuidoWidget(this);
+			ExtendedGuidoWidget* guidoWidget = new ExtendedGuidoWidget(ui.lineScoreContainerWidget);
+			guidoWidget->setSingleLineMode(true);
+			guidoWidget->setPerformanceMarkerColor(perfMarkerColor);
+			guidoWidget->setPerformanceMarkerMode(perfMarkerMode);
 
 			QSizePolicy policy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 			policy.setHeightForWidth(true);
 			guidoWidget->setSizePolicy(policy);
 
-			mainLayout->addWidget(guidoWidget);
+			ui.lineScoreContainerWidget->layout()->addWidget(guidoWidget);
 
 			lineWidgets << guidoWidget;
 		}
@@ -62,6 +67,19 @@ void DynamicWrapScoreWidget::setLineCount(int lineCount)
 void DynamicWrapScoreWidget::setARHandler(ARHandler ar)
 {
 	ScoreWidget::setARHandler(ar);
+
+	if (ar)
+	{
+		ar->refCount += 2;
+	}
+
+	ui.fullScoreWidget->setARHandler(ar);
+	ui.fullScoreWidget->setGridHeight(ui.fullScoreWidget->pageCount());
+
+	if (ar)
+	{
+		ar->refCount -= 1;
+	}
 
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
@@ -84,18 +102,15 @@ void DynamicWrapScoreWidget::setARHandler(ARHandler ar)
 
 CGRHandler DynamicWrapScoreWidget::getGRHandler() const
 {
-	if (lineWidgets.isEmpty())
-	{
-		return nullptr;
-	}
-
-	return lineWidgets[0]->getGRHandler();
+	return ui.fullScoreWidget->getGRHandler();
 }
 
 
-void DynamicWrapScoreWidget::setPerformanceMarkerMode(PerformanceMarkerMode mode)
+void DynamicWrapScoreWidget::setPerformanceMarkerMode(ScoreWidgetEnums::PerformanceMarkerMode mode)
 {
 	ScoreWidget::setPerformanceMarkerMode(mode);
+
+	ui.fullScoreWidget->setPerformanceMarkerMode(mode);
 
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
@@ -108,6 +123,8 @@ void DynamicWrapScoreWidget::setPerformanceMarkerColor(const QColor& color)
 {
 	ScoreWidget::setPerformanceMarkerColor(color);
 
+	ui.fullScoreWidget->setPerformanceMarkerColor(color);
+
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
 		widget->setPerformanceMarkerColor(color);
@@ -118,6 +135,8 @@ void DynamicWrapScoreWidget::setPerformanceMarkerColor(const QColor& color)
 void DynamicWrapScoreWidget::setPerformanceMarker(int32_t markerNum, int32_t markerDenom)
 {
 	ScoreWidget::setPerformanceMarker(markerNum, markerDenom);
+
+	ui.fullScoreWidget->setPerformanceMarker(markerNum, markerDenom);
 
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
@@ -130,6 +149,8 @@ void DynamicWrapScoreWidget::clearPerformanceMarker()
 {
 	ScoreWidget::clearPerformanceMarker();
 
+	ui.fullScoreWidget->clearPerformanceMarker();
+
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
 		widget->clearPerformanceMarker();
@@ -140,6 +161,8 @@ void DynamicWrapScoreWidget::clearPerformanceMarker()
 void DynamicWrapScoreWidget::addExcessNote(int32_t timeNum, int32_t timeDenom, int pitch, int octave)
 {
 	ScoreWidget::addExcessNote(timeNum, timeDenom, pitch, octave);
+
+	ui.fullScoreWidget->addExcessNote(timeNum, timeDenom, pitch, octave);
 
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
@@ -152,6 +175,8 @@ void DynamicWrapScoreWidget::addExcessNote(int32_t timeNum, int32_t timeDenom, i
 {
 	ScoreWidget::addExcessNote(timeNum, timeDenom, midiKey);
 
+	ui.fullScoreWidget->addExcessNote(timeNum, timeDenom, midiKey);
+
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
 		widget->addExcessNote(timeNum, timeDenom, midiKey);
@@ -162,6 +187,8 @@ void DynamicWrapScoreWidget::addExcessNote(int32_t timeNum, int32_t timeDenom, i
 void DynamicWrapScoreWidget::clearExcessNotes()
 {
 	ScoreWidget::clearExcessNotes();
+
+	ui.fullScoreWidget->clearExcessNotes();
 
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
@@ -238,8 +265,23 @@ void DynamicWrapScoreWidget::updateARHandler()
 {
 	ScoreWidgetBase::updateARHandler();
 
+	ui.fullScoreWidget->updateARHandler();
+
 	for (ExtendedGuidoWidget* widget : lineWidgets)
 	{
 		widget->updateARHandler();
+	}
+}
+
+
+void DynamicWrapScoreWidget::setShowFullScore(bool showFullScore)
+{
+	if (showFullScore)
+	{
+		ui.mainStackWidget->setCurrentWidget(ui.fullScoreWidgetScrollAreaContainerWidget);
+	}
+	else
+	{
+		ui.mainStackWidget->setCurrentWidget(ui.lineScoreStretchWidget);
 	}
 }

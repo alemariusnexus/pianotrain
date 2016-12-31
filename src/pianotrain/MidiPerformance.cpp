@@ -13,7 +13,7 @@ using std::max;
 
 
 MidiPerformance::MidiPerformance(QObject* parent)
-		: QObject(parent), nextStart(0), perfThread(nullptr), noteNameOctaveOffset(-1), chordActive(false)
+		: QObject(parent), nextStart(0), perfThread(nullptr), noteNameOctaveOffset(-1), rhythmMode(false), chordActive(false)
 {
 	auto graceFunc = [](int32_t& graceNum, int32_t& graceDenom, int32_t lenNum, int32_t lenDenom) {
     	graceNum = lenNum;
@@ -33,7 +33,7 @@ MidiPerformance::MidiPerformance(QObject* parent)
 
 
 MidiPerformanceThread::MidiPerformanceThread(MidiPerformance* perf, QObject* parent)
-		: QThread(parent), perf(perf), stopped(false)
+		: QThread(parent), perf(perf), stopped(false), startedEventSent(false)
 {
 }
 
@@ -188,6 +188,12 @@ void MidiPerformance::setNoteNameOctaveOffset(int8_t octaveOffset)
 }
 
 
+void MidiPerformance::setRhythmMode(bool rhythmMode)
+{
+	this->rhythmMode = rhythmMode;
+}
+
+
 void MidiPerformance::startAt(uint64_t startTimestamp)
 {
 	MidiService* midi = MidiService::getInstance();
@@ -227,6 +233,12 @@ void MidiPerformance::stop()
 bool MidiPerformance::isPerformanceRunning() const
 {
 	return perfThread != nullptr  &&  GetMultimediaTimerMilliseconds() >= perfThread->performanceStartTime;
+}
+
+
+bool MidiPerformance::isPerformanceScheduled() const
+{
+	return perfThread != nullptr;
 }
 
 
@@ -278,7 +290,7 @@ void MidiPerformance::hitNote(int8_t midiKey, int32_t timeNum, int32_t timeDenom
 
 		for (Note* note : closestNotes)
 		{
-			if (note->midiKey == midiKey)
+			if (rhythmMode  ||  note->midiKey == midiKey)
 			{
 				note->hit = true;
 				reportHitNote(tick, MIDI_PERFORMANCE_LEN_WHOLE, *note);
@@ -378,6 +390,12 @@ void MidiPerformanceThread::eventLoopTick()
 
 	if (now >= performanceStartTime)
 	{
+		if (!startedEventSent)
+		{
+			perf->notifyPerformanceStarted();
+			startedEventSent = true;
+		}
+
 		bool notesOpen = false;
 
 		int32_t currentTick = perf->getPerformanceTick();
@@ -518,6 +536,12 @@ void MidiPerformance::reportWrongNote(int32_t hitNum, int32_t hitDenom, const QL
 void MidiPerformance::notifyCurrentTickUpdated(int32_t num, int32_t denom)
 {
 	emit currentTickUpdated(num, denom);
+}
+
+
+void MidiPerformance::notifyPerformanceStarted()
+{
+	emit performanceStarted();
 }
 
 

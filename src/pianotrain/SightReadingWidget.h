@@ -24,18 +24,30 @@ class SightReadingWidget : public QWidget
 public:
 	SightReadingWidget(QWidget* parent = nullptr);
 
-	Q_INVOKABLE void startPerformanceCountoff();
+	Q_INVOKABLE void setGMNCode(const QString& code);
+
+	Q_INVOKABLE void setTempo(int32_t bpm);
+
+	Q_INVOKABLE void setRhythmMode(bool rhythmMode);
+
+	Q_INVOKABLE Metronome* getMetronome() { return metronome; }
+
+	Q_INVOKABLE void startPerformance();
+
+	Q_INVOKABLE void stopPerformance();
+
+	Q_INVOKABLE DynamicWrapScoreWidget* getScoreWidget();
+
+signals:
+	void generateRequested();
+	void performanceStarted();
+	void performanceFinished(bool stopped);
 
 private slots:
-	//void startPerformanceCountoff();
-	void startPerformance();
-	void interruptStuff();
-
 	void onGenerate();
-	void onPreviousPage();
-	void onNextPage();
+	void onStartStop();
 
-	void performanceFinished(bool stopped);
+	void performanceFinishedSlot(bool stopped);
 
 	void currentTickUpdated(int32_t num, int32_t denom);
 
@@ -58,19 +70,15 @@ private slots:
 
 private:
 	Ui_SightReadingWidget ui;
-	QTimer* metronomeTimer;
+
 	ARHandler ar;
 	MidiPerformance* perf;
-	//GuidoNoteMarker* noteMarker;
+	int32_t tempo;
+	bool rhythmMode;
 
 	Metronome* metronome;
 	uint32_t musicDurationNum;
 	uint32_t musicDurationDenom;
-
-	//QColor activeLineOverlayColor;
-	//QColor inactiveLineOverlayColor;
-
-	//int activePage;
 };
 
 

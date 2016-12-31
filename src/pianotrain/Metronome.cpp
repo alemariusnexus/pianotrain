@@ -1,4 +1,5 @@
 #include "Metronome.h"
+#include "System.h"
 #include <QtCore/QFile>
 #include <QtCore/QTimer>
 #include <QtCore/QCoreApplication>
@@ -22,24 +23,26 @@ Metronome::Metronome(QObject* parent)
 
 	// TODO: I'm sure this can be done more intelligently
 
+	System* sys = System::getInstance();
+
 	for (unsigned int i = 0 ; i < measureStartSoundBufSize ; i++)
 	{
 		QSoundEffect* effect = new QSoundEffect;
-		effect->setSource(QUrl::fromLocalFile(":/sounds/metronome_measure_start.wav"));
+		effect->setSource(QUrl::fromLocalFile(sys->getDataPath() + "/sounds/metronome_measure_start.wav"));
 		measureStartSounds << effect;
 	}
 
 	for (unsigned int i = 0 ; i < measureTickSoundBufSize ; i++)
 	{
 		QSoundEffect* effect = new QSoundEffect;
-		effect->setSource(QUrl::fromLocalFile(":/sounds/metronome_measure_tick.wav"));
+		effect->setSource(QUrl::fromLocalFile(sys->getDataPath() + "/sounds/metronome_measure_tick.wav"));
 		measureTickSounds << effect;
 	}
 
 	for (unsigned int i = 0 ; i < measureSubTickSoundBufSize ; i++)
 	{
 		QSoundEffect* effect = new QSoundEffect;
-		effect->setSource(QUrl::fromLocalFile(":/sounds/metronome_measure_subtick.wav"));
+		effect->setSource(QUrl::fromLocalFile(sys->getDataPath() + "/sounds/metronome_measure_subtick.wav"));
 		measureSubTickSounds << effect;
 	}
 }
@@ -58,7 +61,7 @@ void Metronome::startAt(uint64_t startTimestamp, int32_t countoff)
 	metronomeThread->metronomeStopTime = 0;
 	metronomeThread->countoff = countoff;
 
-	/*for (QSoundEffect* eff : measureStartSounds)
+	for (QSoundEffect* eff : measureStartSounds)
 	{
 		//eff->moveToThread(metronomeThread);
 		metronomeThread->measureStartSounds << eff;
@@ -74,7 +77,7 @@ void Metronome::startAt(uint64_t startTimestamp, int32_t countoff)
 	{
 		//eff->moveToThread(metronomeThread);
 		metronomeThread->measureSubTickSounds << eff;
-	}*/
+	}
 
 	metronomeThread->curMeasureStartSoundsIndex = 0;
 	metronomeThread->curMeasureTickSoundsIndex = 0;
@@ -196,9 +199,6 @@ void MetronomeThread::metronomeSubTick()
 	int32_t subticksPerMeasure = metronome->getTicksPerMeasure() * numSubdivisions;
 
 	QSoundEffect* effectToPlay = nullptr;
-
-	/*printf("Fick dich at %llu\n", GetMultimediaTimerMilliseconds() - metronomeStartTime);
-	fflush(stdout);*/
 
 	if (metronomeTickCounter % subticksPerMeasure == 0)
 	{

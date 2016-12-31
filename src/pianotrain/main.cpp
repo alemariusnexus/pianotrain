@@ -19,12 +19,33 @@
 #include "MidiPerformance.h"
 #include "SightReadingWidget.h"
 
+#include <PythonQt.h>
+#include <PythonQt_QtAll.h>
+
+#include <QFile>
+#include <QFileInfo>
+#include <QLayout>
+#include <QGroupBox>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QCommandLineParser>
+#include <QCommandLineOption>
+
 
 
 
 int main(int argc, char** argv)
 {
+	// Disable stdout/stderr buffering on Windows that prevents text from appearing unless fflush() is called.
+	// Whose fucking idea was that, anyway?
+	setbuf(stdout, nullptr);
+	setbuf(stderr, nullptr);
+
 	QApplication app(argc, argv);
+
+	QApplication::setOrganizationName("alemariusnexus");
+	QApplication::setApplicationName("pianotrain");
 
     qRegisterMetaType<uint8_t>("uint8_t");
     qRegisterMetaType<uint16_t>("uint16_t");
@@ -36,7 +57,60 @@ int main(int argc, char** argv)
     qRegisterMetaType<int32_t>("int32_t");
     qRegisterMetaType<int64_t>("int64_t");
 
-    QFontDatabase::addApplicationFont(":/fonts/guido2.ttf");
+    qRegisterMetaType<QWidget*>("QWidget*");
+
+    QCommandLineParser parser;
+    parser.addHelpOption();
+    parser.addVersionOption();
+
+    QCommandLineOption dataPathOption(QStringList() << "d" << "data",
+    		"Path to the data directory", "directory");
+    parser.addOption(dataPathOption);
+
+    QCommandLineOption pythonPathOption(QStringList() << "p" << "pythonpath",
+    		"Add a directory to the Python system path", "directory");
+    parser.addOption(pythonPathOption);
+
+    parser.process(app);
+
+
+    System* system = System::getInstance();
+
+    if (parser.isSet(dataPathOption))
+    {
+    	system->setDataPath(parser.value(dataPathOption));
+    }
+    else
+    {
+    	if (QFile::exists("./data"))
+    	{
+    		system->setDataPath("./data");
+    	}
+    	else if (QFile::exists(QApplication::applicationDirPath() + "/data"))
+    	{
+    		system->setDataPath(QApplication::applicationDirPath() + "/data");
+    	}
+    	else
+    	{
+    		system->setDataPath("./data");
+    	}
+    }
+
+    if (!QFile::exists(system->getScriptPath() + "/setup.py"))
+    {
+    	fprintf(stderr, "ERROR: Invalid data directory: %s\n", system->getDataPath().toUtf8().constData());
+    	return 1;
+    }
+
+    for (QString path : parser.values(pythonPathOption))
+    {
+    	system->addPythonSystemPath(path);
+    }
+
+    QFileInfo dataDirInfo(system->getDataPath());
+    printf("Using data directory: %s\n", dataDirInfo.absoluteFilePath().toUtf8().constData());
+
+    QFontDatabase::addApplicationFont(system->getDataPath() + "/fonts/guido2.ttf");
     
     QGuidoPainter::startGuidoEngine();
 
@@ -45,10 +119,6 @@ int main(int argc, char** argv)
     midi->startup();
 
     midi->openInput("Digital Piano");
-
-    System* system = System::getInstance();
-
-    system->setDataPath("C:/Users/alemariusnexus/workspace/pianotrain/src/data");
 
 
     int deviceId = -1;
@@ -68,114 +138,7 @@ int main(int argc, char** argv)
     	}
     }
 
-    fflush(stdout);
-
-    //perf.hitNote(60, GetMultimediaTimerMilliseconds() + 10);
-    //perf.hitNote(60, GetMultimediaTimerMilliseconds() + 700);
-
-    //PmDeviceID defaultInDev = Pm_GetDefaultInputDeviceID();
-
-    /*int deviceId = -1;
-
-    for (int i = 0 ; i < Pm_CountDevices() ; i++)
-    {
-    	const PmDeviceInfo* info = Pm_GetDeviceInfo(i);
-
-    	if (info->input)
-    	{
-    		if (strcmp(info->name, "Digital Piano") == 0)
-    		{
-    			deviceId = i;
-    		}
-    		printf("Device %d: %s\n", i, info->name);
-    	}
-    }
-
-    if (deviceId == -1)
-    {
-    	fprintf(stderr, "ERROR: Digital piano not found in MIDI devices!\n");
-    	exit(1);
-    }
-
-    StartMultimediaTimer();
-
-    PmStream* midi;
-
-    Pm_OpenInput(&midi, deviceId, NULL, 100, &_PmGetTime, NULL);
-
-    Pm_SetFilter(midi, PM_FILT_ACTIVE | PM_FILT_CLOCK | PM_FILT_SYSEX);
-
-    PmEvent midiEvt;
-
-    while (Pm_Poll(midi))
-    {
-    	Pm_Read(midi, &midiEvt, 1);
-    }
-
-    fflush(stdout);
-
-    printf("Listening to MIDI messages...\n");
-    fflush(stdout);
-
-    while (true)
-    {
-    	if (Pm_Poll(midi)  &&  Pm_Read(midi, &midiEvt, 1) > 0)
-    	{
-    		int32_t status = Pm_MessageStatus(midiEvt.message);
-    		int32_t data1 = Pm_MessageData1(midiEvt.message);
-    		int32_t data2 = Pm_MessageData2(midiEvt.message);
-
-    		int32_t channel = status & 0xF;
-    		int32_t cmd = status & 0xF0;
-
-    		if (cmd == 0x90)
-    		{
-    			// Note On event. Also Note Off if velocity == 0
-
-    			int32_t key = data1 & 0x7F;
-    			int32_t velocity = data2 & 0x7F;
-
-    			if (velocity > 0)
-    			{
-    				// Actual Note On
-
-    				printf("%s pressed (velocity: %d)\n", ConvertMidiKeyToString(key).get(), velocity);
-    			}
-    			else
-    			{
-    				// Alternative implementation for Note Off
-
-    				printf("%s released\n", ConvertMidiKeyToString(key).get());
-    			}
-    		}
-    		else if (cmd == 0x80)
-    		{
-    			// Note Off event. Not always implemented (Note On with velocity=0 is often used instead)
-
-    			int32_t key = data1 & 0x7F;
-    			int32_t velocity = data2 & 0x7F;
-
-    			printf("%s released\n", ConvertMidiKeyToString(key).get());
-    		}
-    		else
-    		{
-    			printf("MIDI message: %02X - %02X %02X\n", status, data1, data2);
-    		}
-
-    		fflush(stdout);
-    	}
-    }*/
-
-	/*QGuidoWidget w;
-    w.resize(200, 200);
-	w.setGMNCode("[c d e f g a b c2]", QString());
-	w.resize(800, 800);
-	w.show();*/
-
-    system->setupLua();
-
-    //MainWindow* mainWin = new MainWindow;
-    //mainWin->show();
+    system->setupScripting();
 
     int status = app.exec();
     

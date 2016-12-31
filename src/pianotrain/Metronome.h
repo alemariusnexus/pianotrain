@@ -40,11 +40,11 @@ public:
 	uint64_t nextMetronomeTick;
 	int32_t countoff;
 
-	/*// Multiple copies of the same sound effect, to be able to play the sound again while it hasn't finished (happens at
+	// Multiple copies of the same sound effect, to be able to play the sound again while it hasn't finished (happens at
 	// high tempos). A single QSoundEffect doesn't play nicely this way.
 	QList<QSoundEffect*> measureStartSounds;
 	QList<QSoundEffect*> measureTickSounds;
-	QList<QSoundEffect*> measureSubTickSounds;*/
+	QList<QSoundEffect*> measureSubTickSounds;
 
 	uint32_t curMeasureStartSoundsIndex;
 	uint32_t curMeasureTickSoundsIndex;
@@ -61,27 +61,27 @@ class Metronome : public QObject
 public:
 	Metronome(QObject* parent = nullptr);
 
-	void startAt(uint64_t startTimestamp, int32_t countoff = 0);
-	void startAtWithLength(uint64_t startTimestamp, uint32_t numTicks, int32_t countoff = 0);
+	Q_INVOKABLE void startAt(uint64_t startTimestamp, int32_t countoff = 0);
+	Q_INVOKABLE void startAtWithLength(uint64_t startTimestamp, uint32_t numTicks, int32_t countoff = 0);
 
-	void stopAt(uint64_t stopTimestamp);
-	void stop();
+	Q_INVOKABLE void stopAt(uint64_t stopTimestamp);
+	Q_INVOKABLE void stop();
 
-	uint64_t getPerformanceBeginTime() const;
+	Q_INVOKABLE uint64_t getPerformanceBeginTime() const;
 
-	void setTicksPerMinute(int32_t tpm);
-	void setTicksPerMeasure(int32_t tpm);
-	void setNumSubdivisions(int32_t num);
+	Q_INVOKABLE void setTicksPerMinute(int32_t tpm);
+	Q_INVOKABLE void setTicksPerMeasure(int32_t tpm);
+	Q_INVOKABLE void setNumSubdivisions(int32_t num);
 
-	int32_t getTicksPerMinute() const { return ticksPerMinute; }
-	int32_t getTicksPerMeasure() const { return ticksPerMeasure; }
-	int32_t getNumSubdivisions() const { return numSubdivisions; }
+	Q_INVOKABLE int32_t getTicksPerMinute() const { return ticksPerMinute; }
+	Q_INVOKABLE int32_t getTicksPerMeasure() const { return ticksPerMeasure; }
+	Q_INVOKABLE int32_t getNumSubdivisions() const { return numSubdivisions; }
 
-	void setRegularVolume(float volume);
-	void setCountoffVolume(float volume);
+	Q_INVOKABLE void setRegularVolume(float volume);
+	Q_INVOKABLE void setCountoffVolume(float volume);
 
-	float getRegularVolume() const { return regularVolume; }
-	float getCountoffVolume() const { return countoffVolume; }
+	Q_INVOKABLE float getRegularVolume() const { return regularVolume; }
+	Q_INVOKABLE float getCountoffVolume() const { return countoffVolume; }
 
 private:
 	void calculateSoundBufferSizes(unsigned int& measureStartSoundBufSize, unsigned int& measureTickSoundBufSize,

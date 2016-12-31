@@ -42,6 +42,7 @@ public:
 	MidiPerformance* perf;
 	uint64_t performanceStartTime;
 	bool stopped;
+	bool startedEventSent;
 };
 
 
@@ -94,6 +95,7 @@ public:
 	void stop();
 
 	bool isPerformanceRunning() const;
+	bool isPerformanceScheduled() const;
 
 	void hitNote(int8_t midiKey, int32_t timeNum, int32_t timeDenom);
 	void hitNote(int8_t midiKey, uint64_t timestamp);
@@ -104,6 +106,8 @@ public:
 	void releaseNote(uint8_t midiKey);
 
 	void setNoteNameOctaveOffset(int8_t octaveOffset = -1);
+
+	void setRhythmMode(bool rhythmMode);
 
 signals:
 	void currentTickUpdated(int32_t num, int32_t denom);
@@ -125,6 +129,7 @@ signals:
 			int8_t midiKey,
 			int32_t hitNum, int32_t hitDenom );
 
+	void performanceStarted();
 	void performanceFinished(bool stopped);
 
 	/*// TODO: Expose more info
@@ -150,16 +155,16 @@ protected:
 
 private:
 	void notifyCurrentTickUpdated(int32_t num, int32_t denom);
+	void notifyPerformanceStarted();
 
 private:
 	QList<Note> notes;
 	int32_t nextStart;
 	int32_t ticksPerMinute;
 	std::function<int32_t(int32_t, int32_t)> gracePeriodFunc;
-	//std::thread* perfThread;
 	MidiPerformanceThread* perfThread;
-	//uint64_t perfStartTimestamp;
 	int8_t noteNameOctaveOffset;
+	bool rhythmMode;
 
 	bool chordActive;
 	int32_t chordMinLength;

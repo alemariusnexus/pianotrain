@@ -10,7 +10,6 @@ class GSystemQt;
 
 
 
-//class ExtendedGuidoWidget : public QGuidoWidget
 class ExtendedGuidoWidget : public QGuidoWidget, public ScoreWidgetBase
 {
 	Q_OBJECT
@@ -18,29 +17,31 @@ class ExtendedGuidoWidget : public QGuidoWidget, public ScoreWidgetBase
 public:
 	ExtendedGuidoWidget(QWidget* parent = nullptr);
 
-	virtual void setARHandler(ARHandler ar);
+	virtual Q_INVOKABLE void setARHandler(ARHandler ar);
 
-	virtual CGRHandler getGRHandler() const;
+	virtual Q_INVOKABLE CGRHandler getGRHandler() const;
 
-	virtual void setPerformanceMarkerMode(PerformanceMarkerMode mode);
+	virtual Q_INVOKABLE void setPerformanceMarkerMode(ScoreWidgetEnums::PerformanceMarkerMode mode);
 
-	virtual void setPerformanceMarker(int32_t markerNum, int32_t markerDenom);
-	virtual void clearPerformanceMarker();
+	virtual Q_INVOKABLE void setPerformanceMarker(int32_t markerNum, int32_t markerDenom);
+	virtual Q_INVOKABLE void clearPerformanceMarker();
 
-	virtual void addExcessNote(int32_t timeNum, int32_t timeDenom, int pitch, int octave);
-	virtual void addExcessNote(int32_t timeNum, int32_t timeDenom, int8_t midiKey);
-	virtual void clearExcessNotes();
+	virtual Q_INVOKABLE void addExcessNote(int32_t timeNum, int32_t timeDenom, int pitch, int octave);
+	virtual Q_INVOKABLE void addExcessNote(int32_t timeNum, int32_t timeDenom, int8_t midiKey);
+	virtual Q_INVOKABLE void clearExcessNotes();
 
-	virtual void updateARHandler();
+	virtual Q_INVOKABLE void updateARHandler();
 
-	virtual void setBlanked(bool blanked);
-	virtual void setOverlayColor(const QColor& overlayColor);
+	virtual Q_INVOKABLE void setBlanked(bool blanked);
+	virtual Q_INVOKABLE void setOverlayColor(const QColor& overlayColor);
+	virtual Q_INVOKABLE void setSingleLineMode(bool singleLineMode);
 
 public:
 	QSize sizeHint() const;
 
 protected:
 	void paintEvent(QPaintEvent* event);
+	void resizeEvent(QResizeEvent* evt);
 
 	virtual void paintPerformanceMarker(const QRect& markerRect);
 
@@ -57,6 +58,7 @@ private:
 
 	QRect lastPerformanceMarkerRect;
 
+	bool singleLineMode;
 	bool blanked;
 	QColor overlayColor;
 

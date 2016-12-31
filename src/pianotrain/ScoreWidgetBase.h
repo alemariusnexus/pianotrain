@@ -9,16 +9,25 @@
 
 
 
-class ScoreWidgetBase
+class ScoreWidgetEnums : public QObject
 {
+	Q_OBJECT
+	Q_ENUMS(PerformanceMarkerMode)
+
 public:
 	// TODO: A "leftmost with tolerance" mode would be nice
 	enum PerformanceMarkerMode
 	{
+		MarkNone,
 		MarkAllSimultaneous,
-		MarkLeftmost
+		MarkLeftmost,
+		MarkMeasure
 	};
+};
 
+
+class ScoreWidgetBase
+{
 protected:
 	struct ExcessNote
 	{
@@ -36,9 +45,9 @@ public:
 	CARHandler getARHandler() const;
 
 	//virtual GRHandler getGRHandler();
-	virtual CGRHandler getGRHandler() const = 0;
+	virtual CGRHandler getGRHandler() const;
 
-	virtual void setPerformanceMarkerMode(PerformanceMarkerMode mode);
+	virtual void setPerformanceMarkerMode(ScoreWidgetEnums::PerformanceMarkerMode mode);
 	virtual void setPerformanceMarkerColor(const QColor& color);
 
 	virtual void setPerformanceMarker(int32_t markerNum, int32_t markerDenom);
@@ -63,7 +72,7 @@ protected:
 
 	GuidoNoteMarker* noteMarker;
 
-	PerformanceMarkerMode perfMarkerMode;
+	ScoreWidgetEnums::PerformanceMarkerMode perfMarkerMode;
 	QColor perfMarkerColor;
 	int32_t perfMarkerNum;
 	int32_t perfMarkerDenom;

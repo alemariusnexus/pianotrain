@@ -5,7 +5,7 @@
 
 
 ScoreWidgetBase::ScoreWidgetBase()
-		: ar(nullptr), noteMarker(nullptr), perfMarkerMode(MarkAllSimultaneous), perfMarkerColor(QColor(0, 0, 255, 50)),
+		: ar(nullptr), noteMarker(nullptr), perfMarkerMode(ScoreWidgetEnums::MarkAllSimultaneous), perfMarkerColor(QColor(0, 0, 255, 40)),
 		  perfMarkerNum(-1), perfMarkerDenom(1)
 {
 }
@@ -43,13 +43,19 @@ CARHandler ScoreWidgetBase::getARHandler() const
 }
 
 
+CGRHandler ScoreWidgetBase::getGRHandler() const
+{
+	return nullptr;
+}
+
+
 /*GRHandler ScoreWidgetBase::getGRHandler()
 {
 	return const_cast<GRHandler>(const_cast<const ScoreWidgetBase*>(this)->getGRHandler());
 }*/
 
 
-void ScoreWidgetBase::setPerformanceMarkerMode(PerformanceMarkerMode mode)
+void ScoreWidgetBase::setPerformanceMarkerMode(ScoreWidgetEnums::PerformanceMarkerMode mode)
 {
 	perfMarkerMode = mode;
 }

@@ -31,6 +31,7 @@
 #include <QComboBox>
 #include <QCommandLineParser>
 #include <QCommandLineOption>
+#include <QSettings>
 
 
 
@@ -101,6 +102,8 @@ int main(int argc, char** argv)
     	fprintf(stderr, "ERROR: Invalid data directory: %s\n", system->getDataPath().toUtf8().constData());
     	return 1;
     }
+
+    QSettings::setDefaultFormat(QSettings::IniFormat);
 
     for (QString path : parser.values(pythonPathOption))
     {

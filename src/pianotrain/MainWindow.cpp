@@ -9,15 +9,23 @@
 #include <ctime>
 #include <cstdlib>
 
+#include "SettingsDialog.h"
 #include "SightReadingExercise.h"
 #include <PythonQt.h>
 
 
 
 MainWindow::MainWindow(QWidget* parent)
-		: QWidget(parent), currentExercise(nullptr)
+		: QMainWindow(parent), currentExercise(nullptr)
 {
 	ui.setupUi(this);
+
+	connect(ui.actionQuit, SIGNAL(triggered()), qApp, SLOT(quit()));
+
+	connect(ui.actionSettings, SIGNAL(triggered()), this, SLOT(settingsTriggered()));
+
+	connect(ui.actionAbout, SIGNAL(triggered()), this, SLOT(aboutTriggered()));
+	connect(ui.actionAboutQt, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
 
 	connect(ui.exerciseListWidget, SIGNAL(exerciseSelected(Exercise*)), this, SLOT(exerciseChanged(Exercise*)));
 
@@ -47,6 +55,7 @@ MainWindow::MainWindow(QWidget* parent)
 	QSettings settings;
 
 	restoreGeometry(settings.value("gui/MainWindow/geometry").toByteArray());
+	restoreState(settings.value("gui/MainWindow/state").toByteArray());
 
 	ui.mainSplitter->restoreState(settings.value("gui/MainWindow/mainSplitter_state").toByteArray());
 
@@ -142,10 +151,28 @@ void MainWindow::saveWindowSettings()
 	QSettings settings;
 
 	QByteArray geometry = saveGeometry();
+	QByteArray state = saveState();
 
 	if (geometry != lastSavedGeometry)
 	{
 		lastSavedGeometry = geometry;
 		settings.setValue("gui/MainWindow/geometry", geometry);
 	}
+	if (state != lastSavedState)
+	{
+		lastSavedState = state;
+		settings.setValue("gui/MainWindow/state", state);
+	}
+}
+
+
+void MainWindow::aboutTriggered()
+{
+}
+
+
+void MainWindow::settingsTriggered()
+{
+	SettingsDialog dlg(this);
+	dlg.exec();
 }

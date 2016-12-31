@@ -3,6 +3,7 @@
 #include <QtCore/QFile>
 #include <QtCore/QTimer>
 #include <QtCore/QCoreApplication>
+#include <QtCore/QSettings>
 #include <QAudioDeviceInfo>
 #include <QAudioOutput>
 #include <QAudioDecoder>
@@ -84,6 +85,9 @@ void Metronome::startAt(uint64_t startTimestamp, int32_t countoff)
 	metronomeThread->curMeasureSubTickSoundsIndex = 0;
 
 	connect(metronomeThread, SIGNAL(finished()), this, SLOT(metronomeThreadFinished()));
+
+	QSettings settings;
+	volumeMultiplier = settings.value("audio/metronome/volume_multiplier", 1.0f).toFloat();
 
     metronomeThread->start();
     metronomeThread->setPriority(QThread::TimeCriticalPriority);
@@ -220,11 +224,11 @@ void MetronomeThread::metronomeSubTick()
 	{
 		if (metronomeTickCounter < countoff*numSubdivisions)
 		{
-			effectToPlay->setVolume(metronome->getCountoffVolume());
+			effectToPlay->setVolume(metronome->getCountoffVolume() * metronome->getVolumeMultiplier());
 		}
 		else
 		{
-			effectToPlay->setVolume(metronome->getRegularVolume());
+			effectToPlay->setVolume(metronome->getRegularVolume() * metronome->getVolumeMultiplier());
 		}
 
 		effectToPlay->play();

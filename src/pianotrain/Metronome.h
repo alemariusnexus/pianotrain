@@ -83,6 +83,8 @@ public:
 	Q_INVOKABLE float getRegularVolume() const { return regularVolume; }
 	Q_INVOKABLE float getCountoffVolume() const { return countoffVolume; }
 
+	Q_INVOKABLE float getVolumeMultiplier() const { return volumeMultiplier; }
+
 private:
 	void calculateSoundBufferSizes(unsigned int& measureStartSoundBufSize, unsigned int& measureTickSoundBufSize,
 			unsigned int& measureSubTickSoundBufSize);
@@ -96,6 +98,7 @@ private:
 	int32_t numSubdivisions;
 	float regularVolume;
 	float countoffVolume;
+	float volumeMultiplier;
 
 	MetronomeThread* metronomeThread;
 

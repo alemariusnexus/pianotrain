@@ -2,6 +2,7 @@
 #define MAINWINDOW_H_
 
 #include <QWidget>
+#include <QMainWindow>
 #include <QtCore/QList>
 #include <QtCore/QTimer>
 #include <ui_MainWindow.h>
@@ -10,7 +11,7 @@
 #include <cstdio>
 
 
-class MainWindow : public QWidget
+class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 
@@ -30,6 +31,9 @@ private slots:
 	void mainSplitterChanged();
 
 	void saveWindowSettings();
+
+	void settingsTriggered();
+	void aboutTriggered();
 
 private:
 	Ui_MainWindow ui;
